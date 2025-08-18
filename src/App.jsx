@@ -11,9 +11,7 @@ import React, { useEffect, useRef, useState } from 'react'
  * - Special: slide 53 (index 52) click-anywhere opens showreel and advances to slide 54 on finish
  */
 
-// --------- SLIDES (first visible slide is D_1 at index 0) ---------------------
 const SLIDES = [
-  // 54 videos: /slides/D_1.mp4 ... /slides/D_54.mp4
   ...Array.from({ length: 54 }, (_, i) => ({
     type: 'video',
     src: `/slides/D_${i + 1}.mp4`,
@@ -21,58 +19,52 @@ const SLIDES = [
   })),
 ]
 
-// --------- HOTSPOTS (percent-based within visible media box) -------------------
-// First screen is now index 0 (D_1). Updated destinations to match new indexing.
+// Hotspots (percent-based)
 const HOTSPOTS = {
-   0: [
-    { to: 1,  x: 74, y: 7, w: 8, h: 6, label: 'Work',    debug: false },   // D_2
-    { to: 49, x: 82, y: 7, w: 8, h: 6, label: 'About',   debug: false },   // D_50
-    { to: 50, x: 90, y: 7, w: 8, h: 6, label: 'Contact', debug: false },   // D_51
-    { copy: 'moisesnevett@gmail.com', x: 5, y: 8, w: 20, h: 3, label: 'Copy Email', toast: 'Email copied', debug: false },
+  0: [
+    { to: 1,  x: 74, y: 7, w: 8, h: 6, label: 'Work',    debug: false },
+    { to: 49, x: 82, y: 7, w: 8, h: 6, label: 'About',   debug: false },
+    { to: 50, x: 90, y: 7, w: 8, h: 6, label: 'Contact', debug: false },
+    { copy: 'moisesnevett@gmail.com', x: 5, y: 92, w: 18, h: 3, label: 'Copy Email', toast: 'Email copied', debug: false },
     { overlay: 'showreel', x: 75, y: 74, w: 22, h: 26, label: 'Workreel', debug: false },
   ],
-
-  // Slide 2 (index 1): six shortcuts (tuned coordinates)
   1: [
-    { to: 6,  x: 8,   y: 20, w: 30, h: 4, label: 'Rabanne',     debug: false },  // slide 7
-    { to: 32, x: 8,   y: 25, w: 30, h: 3, label: 'Zegna',       debug: false },  // slide 33
-    { to: 25, x: 7.5, y: 52, w: 32, h: 3, label: 'Gucci Vault', debug: false },  // slide 26
-    { to: 13, x: 8,   y: 56, w: 32, h: 3, label: 'Coach',       debug: false },  // slide 14
-    { to: 39, x: 8,   y: 64, w: 30, h: 4, label: 'Burberry',    debug: false },  // slide 40
-    { to: 46, x: 58,  y: 20, w: 33, h: 4, label: 'McLaren',     debug: false },  // slide 47
+    { to: 6,  x: 8,   y: 20, w: 30, h: 4, label: 'Rabanne',     debug: false },
+    { to: 32, x: 8,   y: 25, w: 30, h: 3, label: 'Zegna',       debug: false },
+    { to: 25, x: 7.5, y: 52, w: 32, h: 3, label: 'Gucci Vault', debug: false },
+    { to: 13, x: 8,   y: 56, w: 32, h: 3, label: 'Coach',       debug: false },
+    { to: 39, x: 8,   y: 64, w: 30, h: 4, label: 'Burberry',    debug: false },
+    { to: 46, x: 58,  y: 20, w: 33, h: 4, label: 'McLaren',     debug: false },
   ],
-  // Slide 3 (index 2): one shortcut to slide 21 (tweak x/y/w/h if needed)
+  // Slide 3 (index 2): one shortcut to slide 21
   2: [
-    { to: 20, x: 8, y: 42, w: 33, h: 4, label: 'To Slide 21', debug: false },
+    { to: 20, x: 8, y: 42, w: 33, h: 4, label: 'To Slide 21', debug: true },
   ],
-
-  // Slide 53 (index 52): click anywhere to open showreel; on finish auto-advance to slide 54
+  // Slide 53 (index 52): showreel click-anywhere
   52: [
     { overlay: 'showreelAuto', x: 0, y: 0, w: 100, h: 100, label: 'Play Showreel', debug: false },
   ],
-  // Contact slides: 50, 51, 52 (indexes 49, 50, 51)
+  // Contact slides
   49: [
-    { copy: 'moisesnevett@gmail.com', x: 83.5, y: 68.5, w: 12, h: 1.2, label: 'Copy Email',   toast: 'Email copied',   debug: false },
-    { copy: '00447580751398',         x: 83.5, y: 70.6, w: 12, h: 1.2, label: 'Copy Phone',   toast: 'Phone copied',   debug: false },
+    { copy: 'moisesnevett@gmail.com', x: 83.5, y: 68.5, w: 12, h: 1.2, label: 'Copy Email', toast: 'Email copied', debug: false },
+    { copy: '00447580751398',         x: 83.5, y: 70.6, w: 12, h: 1.2, label: 'Copy Phone', toast: 'Phone copied', debug: false },
     { href: 'https://www.linkedin.com/in/moises-nevett-4b8ba62/', x: 83.5, y: 73, w: 7, h: 1.2, label: 'LinkedIn', debug: false },
     { href: 'https://www.instagram.com/moisesnevett/',             x: 83.5, y: 75, w: 7, h: 1.3, label: 'Instagram', debug: false },
   ],
   50: [
-    { copy: 'moisesnevett@gmail.com', x: 83.5, y: 68.5, w: 12, h: 1.2, label: 'Copy Email',   toast: 'Email copied',   debug: false },
-    { copy: '00447580751398',         x: 83.5, y: 70.6, w: 12, h: 1.2, label: 'Copy Phone',   toast: 'Phone copied',   debug: false },
+    { copy: 'moisesnevett@gmail.com', x: 83.5, y: 68.5, w: 12, h: 1.2, label: 'Copy Email', toast: 'Email copied', debug: false },
+    { copy: '00447580751398',         x: 83.5, y: 70.6, w: 12, h: 1.2, label: 'Copy Phone', toast: 'Phone copied', debug: false },
     { href: 'https://www.linkedin.com/in/moises-nevett-4b8ba62/', x: 83.5, y: 73, w: 7, h: 1.2, label: 'LinkedIn', debug: false },
     { href: 'https://www.instagram.com/moisesnevett/',            x: 83.5, y: 75, w: 7, h: 1.3, label: 'Instagram', debug: false },
   ],
   51: [
-    { copy: 'moisesnevett@gmail.com', x: 83.5, y: 68.5, w: 12, h: 1.2, label: 'Copy Email',   toast: 'Email copied',   debug: false },
-    { copy: '00447580751398',         x: 83.5, y: 70.6, w: 12, h: 1.2, label: 'Copy Phone',   toast: 'Phone copied',   debug: false },
+    { copy: 'moisesnevett@gmail.com', x: 83.5, y: 68.5, w: 12, h: 1.2, label: 'Copy Email', toast: 'Email copied', debug: false },
+    { copy: '00447580751398',         x: 83.5, y: 70.6, w: 12, h: 1.2, label: 'Copy Phone', toast: 'Phone copied', debug: false },
     { href: 'https://www.linkedin.com/in/moises-nevett-4b8ba62/', x: 83.5, y: 73, w: 7, h: 1.2, label: 'LinkedIn', debug: false },
     { href: 'https://www.instagram.com/moisesnevett/',            x: 83.5, y: 75, w: 7, h: 1.3, label: 'Instagram', debug: false },
   ],
 }
 
-// Custom cursors (external SVG assets in /public/cursors)
-// Tip: tweak the two numbers (hotspot x y in px) so the arrow tip feels like the click point.
 const CURSORS = {
   next: "url('/cursors/right.svg') 12 8, pointer",
   prev: "url('/cursors/left.svg') 4 8, pointer",
@@ -80,31 +72,27 @@ const CURSORS = {
 }
 
 export default function App() {
-  const [index, setIndex] = useHashIndex(0, SLIDES.length - 1) // start at D_1 (index 0)
-  const [showUI, setShowUI] = useState(true) // Esc toggles this master flag
-  const [uiIdleHidden, setUiIdleHidden] = useState(false) // auto-hide when idle
+  const [index, setIndex] = useHashIndex(0, SLIDES.length - 1)
+  const [showUI, setShowUI] = useState(true)
+  const [uiIdleHidden, setUiIdleHidden] = useState(false)
   const uiIdleTimer = useRef(null)
   const UI_IDLE_MS = 5000
   const UI_FADE_MS = 300
 
-  // --- Ghost cursor (auto-hide) ---
+  // Ghost cursor
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 })
   const [cursorVisible, setCursorVisible] = useState(true)
   const cursorTimer = useRef(null)
   const CURSOR_IDLE_MS = 5000
   const CURSOR_FADE_MS = 300
 
-  // Hide ghost + reveal native pointer while hovering any hotspot
   const [overHotspot, setOverHotspot] = useState(false)
-
   const hotspots = HOTSPOTS[index] || []
 
-  // Overlay state (e.g., 'showreel' | 'showreelAuto' | null)
   const [overlay, setOverlay] = useState(null)
   const openOverlay = (name) => setOverlay(name)
   const closeOverlay = () => setOverlay(null)
 
-  // lightweight toast for copy/link feedback
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
   const showToast = (msg) => {
@@ -113,21 +101,20 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 1200)
   }
 
-  // Page veil for fade-to-black / fade-in transitions when auto-advancing
+  // Veil
   const [veil, setVeil] = useState(false)
   const fadeToSlide = (targetIndex) => {
-    setVeil(true) // fade to black
+    setVeil(true)
     setTimeout(() => {
       setIndex(clamp(targetIndex, 0, SLIDES.length - 1))
       setOverlay(null)
-      // next frame: fade back in
       requestAnimationFrame(() => setVeil(false))
     }, 300)
   }
 
   usePreload(SLIDES, index)
 
-  // Keyboard: ←/→ navigate, H/Home = go to first, Esc closes overlay (or toggles HUD)
+  // Keyboard
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'ArrowRight') { e.preventDefault(); goNext() }
@@ -142,7 +129,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [overlay])
 
-  // Global mouse/touch activity to auto-hide the slideshow HUD
+  // HUD idle
   useEffect(() => {
     const resetUiIdle = () => {
       if (!showUI) return
@@ -150,7 +137,7 @@ export default function App() {
       if (uiIdleTimer.current) clearTimeout(uiIdleTimer.current)
       uiIdleTimer.current = setTimeout(() => setUiIdleHidden(true), UI_IDLE_MS)
     }
-    resetUiIdle() // start the timer on mount
+    resetUiIdle()
     window.addEventListener('mousemove', resetUiIdle)
     window.addEventListener('touchstart', resetUiIdle, { passive: true })
     return () => {
@@ -160,7 +147,7 @@ export default function App() {
     }
   }, [showUI, index])
 
-  // Cursor visibility controller
+  // Cursor idle
   useEffect(() => {
     const onMove = (e) => {
       const x = 'clientX' in e ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : cursorPos.x)
@@ -170,11 +157,8 @@ export default function App() {
       if (cursorTimer.current) clearTimeout(cursorTimer.current)
       cursorTimer.current = setTimeout(() => setCursorVisible(false), CURSOR_IDLE_MS)
     }
-
-    // start idle timer
     if (cursorTimer.current) clearTimeout(cursorTimer.current)
     cursorTimer.current = setTimeout(() => setCursorVisible(false), CURSOR_IDLE_MS)
-
     window.addEventListener('mousemove', onMove)
     window.addEventListener('touchstart', onMove, { passive: true })
     return () => {
@@ -183,10 +167,40 @@ export default function App() {
       if (cursorTimer.current) clearTimeout(cursorTimer.current)
     }
   }, [index, overlay])
-  // Ensure edge arrows re-enable after navigating away from a hotspot slide
+
+  useEffect(() => { setOverHotspot(false) }, [index])
+
+  // ---------------- Share-link Gate (TTL-based) ----------------
+  // Add ?share=TOKEN&ttl=60 to the URL. TTL defaults to 60 minutes if omitted.
+  const [gate, setGate] = useState(false) // true once access is expired
+  const gateTimer = useRef(null)
   useEffect(() => {
-    setOverHotspot(false)
-  }, [index])
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('share') || params.get('s')
+    if (!token) return // only activate if a token is present
+
+    const ttlMin = parseInt(params.get('ttl') || '60', 10) // default 60
+    const key = `share_${token}`
+
+    const now = Date.now()
+    let firstSeen = now
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const data = JSON.parse(raw)
+        if (data && data.firstSeen) firstSeen = data.firstSeen
+      } else {
+        localStorage.setItem(key, JSON.stringify({ firstSeen }))
+      }
+    } catch {}
+
+    const expiresAt = firstSeen + ttlMin * 60 * 1000
+    const ms = expiresAt - now
+    if (ms <= 0) setGate(true)
+    else gateTimer.current = setTimeout(() => setGate(true), ms)
+
+    return () => { if (gateTimer.current) clearTimeout(gateTimer.current) }
+  }, [])
 
   const goTo = (i) => setIndex(clamp(i, 0, SLIDES.length - 1))
   const goNext = () => setIndex(i => clamp(i + 1, 0, SLIDES.length - 1))
@@ -194,12 +208,16 @@ export default function App() {
 
   const uiVisible = showUI && !uiIdleHidden
 
+  const copyGateEmail = async () => {
+    try { await navigator.clipboard.writeText('moisesnevett@gmail.com') } catch {}
+    showToast('Email copied')
+  }
+
   return (
-    <div className={`w-screen h-screen bg-black text-white overflow-hidden select-none ${(!overlay && !overHotspot) ? 'cursor-none' : ''}`}>
-      {/* Left/Right big click zones always available (below hotspots), disabled when overlay is open */}
-      {!overlay && !overHotspot && (
+    <div className={`w-screen h-screen bg-black text-white overflow-hidden select-none ${(!overlay && !overHotspot && !gate) ? 'cursor-none' : ''}`}>
+      {/* Left/Right zones (disabled when overlay OR gate) */}
+      {!overlay && !overHotspot && !gate && (
         <>
-          {/* On the very first slide, BOTH sides go forward; left shows a right arrow */}
           <button
             aria-label={index === 0 ? 'Next' : 'Previous'}
             onClick={index === 0 ? goNext : goPrev}
@@ -212,8 +230,6 @@ export default function App() {
             className="fixed inset-y-0 right-0 w-1/2 z-10 focus:outline-none"
             style={{ background: 'transparent', cursor: 'none' }}
           />
-
-          {/* On the very last slide, clicking ANYWHERE restarts (above edge zones, below hotspots/overlay) */}
           {index === SLIDES.length - 1 && (
             <button
               aria-label="Restart"
@@ -227,10 +243,17 @@ export default function App() {
 
       {/* Slide content */}
       <div className="relative w-full h-full flex items-center justify-center">
-        <MediaSlide slide={SLIDES[index]} hotspots={hotspots} onSelect={goTo} onOverlay={openOverlay} onToast={showToast} onHotspotHover={setOverHotspot} />
+        <MediaSlide
+          slide={SLIDES[index]}
+          hotspots={hotspots}
+          onSelect={goTo}
+          onOverlay={openOverlay}
+          onToast={showToast}
+          onHotspotHover={setOverHotspot}
+        />
       </div>
 
-      {/* Slideshow HUD (auto-fades on inactivity) */}
+      {/* HUD */}
       <div
         className={`absolute bottom-0 left-0 right-0 p-3 md:p-4 flex items-end justify-between transition-opacity duration-[${UI_FADE_MS}ms] ${uiVisible ? 'opacity-80 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         style={{ fontSize: '9px' }}
@@ -245,7 +268,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Fullscreen overlay(s) */}
+      {/* Overlay video */}
       {overlay && (
         <VideoOverlay
           src="/videos/showreel_2025.mp4"
@@ -254,23 +277,50 @@ export default function App() {
         />
       )}
 
-            {/* Page veil for fade-to-black / fade-in transitions */}
+      {/* Veil */}
       <div className={`fixed inset-0 pointer-events-none bg-black transition-opacity duration-300 ${veil ? 'opacity-100' : 'opacity-0'}`} />
 
       {/* Ghost cursor */}
-      {!overlay && !overHotspot && (
+      {!overlay && !overHotspot && !gate && (
         <CursorGhost
           x={cursorPos.x}
           y={cursorPos.y}
-          variant={index === SLIDES.length - 1 ? 'reload' : (index === 0 ? 'next' : ((typeof window !== 'undefined' && cursorPos.x < window.innerWidth / 2) ? 'prev' : 'next'))}
+          variant={
+            index === SLIDES.length - 1
+              ? 'reload'
+              : index === 0
+              ? 'next'
+              : (typeof window !== 'undefined' && cursorPos.x < window.innerWidth / 2) ? 'prev' : 'next'
+          }
           visible={cursorVisible}
           fadeMs={CURSOR_FADE_MS}
         />
       )}
 
+      {/* Expired/gated overlay */}
+      {gate && (
+        <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-6">
+          <div
+            className="text-center text-white"
+            style={{ fontFamily: "'Helvetica Neue', Arial, Helvetica, system-ui, sans-serif", fontWeight: 500, fontSize: '11px', lineHeight: 1.6 }}
+          >
+            <p>
+              Access expired. To renew, please email:{' '}
+              <button onClick={copyGateEmail} className="underline decoration-white/60 hover:decoration-white focus:outline-none">
+                moisesnevett@gmail.com
+              </button>{' '}
+              or contact via{' '}
+              <a className="underline" href="https://www.linkedin.com/in/moises-nevett-4b8ba62/" target="_blank" rel="noopener noreferrer">
+                LinkedIn
+              </a>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-4 right-4 z-[60] px-3 py-2 rounded-md bg-black/70 text-white text-xs transition-opacity duration-300">
+        <div className="fixed bottom-4 right-4 z-[110] px-3 py-2 rounded-md bg-black/70 text-white text-xs transition-opacity duration-300">
           {toast}
         </div>
       )}
@@ -281,7 +331,7 @@ export default function App() {
 function MediaSlide({ slide, hotspots = [], onSelect, onOverlay, onToast, onHotspotHover }) {
   const containerRef = useRef(null)
   const mediaRef = useRef(null)
-  const [box, setBox] = useState(null) // {left, top, width, height}
+  const [box, setBox] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showLoader, setShowLoader] = useState(false)
 
@@ -302,7 +352,6 @@ function MediaSlide({ slide, hotspots = [], onSelect, onOverlay, onToast, onHots
     return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
   }, [slide?.src])
 
-  // loading visibility (avoid flash on instant loads)
   useEffect(() => {
     setLoading(true)
     setShowLoader(false)
@@ -310,7 +359,6 @@ function MediaSlide({ slide, hotspots = [], onSelect, onOverlay, onToast, onHots
     return () => clearTimeout(t)
   }, [slide?.src])
 
-  // ensure we clear hotspot hover state on unmount or slide change
   useEffect(() => () => { onHotspotHover && onHotspotHover(false) }, [onHotspotHover])
 
   return (
@@ -338,7 +386,6 @@ function MediaSlide({ slide, hotspots = [], onSelect, onOverlay, onToast, onHots
         />
       )}
 
-      {/* Hotspot overlay aligned to media box */}
       {box && hotspots.length > 0 && (
         <div className="absolute z-30 pointer-events-none" style={{ left: box.left, top: box.top, width: box.width, height: box.height }}>
           {hotspots.map((h, i) => (
@@ -383,7 +430,6 @@ function MediaSlide({ slide, hotspots = [], onSelect, onOverlay, onToast, onHots
         </div>
       )}
 
-      {/* Loader over the whole viewport while media prepares */}
       {loading && showLoader && <LoaderBars />}
     </div>
   )
@@ -397,8 +443,8 @@ function VideoOverlay({ src, onClose, onFinished }) {
   const [showLoader, setShowLoader] = useState(false)
   const [fadingOut, setFadingOut] = useState(false)
 
-  const OVERLAY_INITIAL_HIDE_MS = 500 // initial quick fade after mount
-  const OVERLAY_IDLE_MS = 2500 // hide after 2–3s of no movement
+  const OVERLAY_INITIAL_HIDE_MS = 500
+  const OVERLAY_IDLE_MS = 2500
 
   useEffect(() => {
     setLoading(true)
@@ -412,7 +458,7 @@ function VideoOverlay({ src, onClose, onFinished }) {
     if (v) v.play().catch(() => {})
     const onEnded = () => {
       if (onFinished) {
-        setFadingOut(true) // fade overlay out
+        setFadingOut(true)
         setTimeout(() => onFinished && onFinished(), 300)
       } else {
         onClose && onClose()
@@ -427,21 +473,13 @@ function VideoOverlay({ src, onClose, onFinished }) {
     }
   }, [onClose, onFinished])
 
-  // handle show/hide of controls on user activity
   useEffect(() => {
     const scheduleHide = (ms) => {
       if (idleTimer.current) clearTimeout(idleTimer.current)
       idleTimer.current = setTimeout(() => setControlsVisible(false), ms)
     }
-
-    // show briefly after mount, then hide
     scheduleHide(OVERLAY_INITIAL_HIDE_MS)
-
-    const onMove = () => {
-      setControlsVisible(true)
-      scheduleHide(OVERLAY_IDLE_MS)
-    }
-
+    const onMove = () => { setControlsVisible(true); scheduleHide(OVERLAY_IDLE_MS) }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('touchstart', onMove, { passive: true })
     return () => {
@@ -458,7 +496,6 @@ function VideoOverlay({ src, onClose, onFinished }) {
 
   return (
     <div className={`fixed inset-0 z-50 bg-black flex items-center justify-center transition-opacity duration-300 ${fadingOut ? 'opacity-0' : 'opacity-100'}`}>
-      {/* Close (auto-hides with controls) */}
       <button
         onClick={onClose}
         className={`absolute top-4 right-4 h-7 w-7 rounded-md border border-white/10 bg-black/40 text-gray-200 leading-none transition-opacity duration-300 z-50 ${controlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
@@ -469,16 +506,8 @@ function VideoOverlay({ src, onClose, onFinished }) {
         ×
       </button>
 
-      {/* Video full-viewport with letterboxing (ensure under controls) */}
-      <video
-        ref={vidRef}
-        src={src}
-        autoPlay
-        playsInline
-        className="w-full h-full object-contain z-40"
-      />
+      <video ref={vidRef} src={src} autoPlay playsInline className="w-full h-full object-contain z-40" />
 
-      {/* Controls (auto-hide on inactivity) */}
       <div
         className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 transition-opacity duration-300 z-50 ${controlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         style={{ fontSize: '9px' }}
@@ -489,13 +518,11 @@ function VideoOverlay({ src, onClose, onFinished }) {
         <button onClick={stop}    className="px-2 py-1.5 rounded-md bg-black/40 hover:bg-black/50 text-gray-200 border border-white/10">Stop</button>
       </div>
 
-      {/* Loader while overlay video prepares */}
       {loading && showLoader && <LoaderBars />}
     </div>
   )
 }
 
-// ------------ Loader component (based on your CSS effect) ---------------------
 function LoaderBars() {
   return (
     <>
@@ -521,13 +548,12 @@ function LoaderBars() {
   )
 }
 
-/** Ghost cursor that mirrors our custom arrows and fades on inactivity */
 function CursorGhost({ x, y, variant, visible, fadeMs = 300 }) {
-  const size = 32 // 200% bigger
+  const size = 32
   const offset =
     variant === 'prev'   ? { x: -size * 0.25, y: -size * 0.5 } :
     variant === 'next'   ? { x: -size * 0.75, y: -size * 0.5 } :
-                           { x: -size * 0.5,  y: -size * 0.5 } // reload centered
+                           { x: -size * 0.5,  y: -size * 0.5 }
   const src = variant === 'reload' ? '/cursors/reload.svg' : variant === 'prev' ? '/cursors/left.svg' : '/cursors/right.svg'
   return (
     <div
