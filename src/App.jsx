@@ -38,7 +38,7 @@ const HOTSPOTS = {
   ],
   // Slide 3 (index 2): one shortcut to slide 21
   2: [
-    { to: 20, x: 8, y: 42, w: 33, h: 4, label: 'To Slide 21', debug: true },
+    { to: 20, x: 8, y: 42, w: 33, h: 4, label: 'To Slide 21', debug: false },
   ],
   // Slide 53 (index 52): showreel click-anywhere
   52: [
