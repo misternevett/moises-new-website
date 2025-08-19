@@ -40,7 +40,7 @@ const HOTSPOTS = {
     { to: 46, x: 58,  y: 20, w: 33, h: 4, label: 'McLaren',     debug: false },
   ],
   2: [
-    { to: 20, x: 8, y: 42, w: 33, h: 4, label: 'To Slide 21', debug: true },
+    { to: 20, x: 8, y: 42, w: 33, h: 4, label: 'To Slide 21', debug: false },
   ],
   52: [
     { overlay: 'showreelAuto', x: 0, y: 0, w: 100, h: 100, label: 'Play Showreel', debug: false },
