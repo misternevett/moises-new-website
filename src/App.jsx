@@ -644,70 +644,76 @@ function usePreload(slides, index) {
 }
 
 /**
- * Aggressive but polite preloader:
- * - Always preloads neighbors (ahead/behind)
- * - Enqueues the next few slides in the background when the main thread is idle
- * - On hotspot hover, preloads its target (and its neighbors)
- * - Adapts to slow networks / Save-Data
- * - Limits concurrency to protect memory/CPU
+ * Aggressive-but-polite preloader (improved):
+ * - Immediately high-priority preload for next 1–2 slides (preload)
+ * - Queue everything else (prefetch) using requestIdleCallback
+ * - On hotspot hover, high-priority warm its target (+ neighbors)
+ * - Adapts to slow networks; limits concurrency
  */
 function useSmartPreload(slides, index, overlay) {
-  const cacheRef = useRef({}) // src -> true when warmed
-  const enqRef = useRef(new Set()) // indices enqueued
-  const queueRef = useRef([]) // indices queued
+  const cacheRef = useRef({})      // src -> true once we've scheduled a warm
+  const enqRef = useRef(new Set()) // indices already queued
+  const queueRef = useRef([])      // FIFO of indices to warm
   const inflightRef = useRef(0)
   const maxRef = useRef(2)
 
+  // Toggle this to true if you want to see logs in DevTools
+  const DEBUG = false
+  const log = (...args) => { if (DEBUG) console.log('[preload]', ...args) }
+
+  // Tune aggressiveness by connection quality
   useEffect(() => {
     try {
       const c = navigator.connection
       const slow = c && (c.effectiveType === '2g' || c.effectiveType === 'slow-2g' || c.saveData)
-      maxRef.current = slow ? 1 : 2
+      maxRef.current = slow ? 1 : 3
     } catch {}
   }, [])
 
   const inBounds = (i) => i >= 0 && i < slides.length
 
-  const warmSrc = (src) => {
+  // Actually schedule a network warm for a given src
+  const warmSrc = (src, priority = false) => {
     if (cacheRef.current[src]) return
     cacheRef.current[src] = true
+
+    // Stronger hint for the next slides, gentler for far slides
     try {
       const l = document.createElement('link')
-      l.rel = 'prefetch'
-      l.as = 'video'
+      l.rel = priority ? 'preload' : 'prefetch'
+      if (priority) l.as = 'video'
       l.href = src
       document.head.appendChild(l)
+      log(priority ? 'preload' : 'prefetch', src)
     } catch {}
+
+    // Create a transient <video> to tickle buffering
     const v = document.createElement('video')
-    v.preload = 'auto'
+    v.preload = priority ? 'auto' : 'metadata'
     v.muted = true
     v.src = src
-    const cleanup = () => {
-      v.removeAttribute('src')
-      v.load()
-    }
+    const cleanup = () => { v.removeAttribute('src'); v.load() }
     v.addEventListener('loadeddata', cleanup, { once: true })
     v.addEventListener('error', cleanup, { once: true })
     try { v.load() } catch {}
   }
 
-  const warmIndex = (i) => {
-    if (!inBounds(i)) return
-    const s = slides[i]
-    if (!s || !s.src) return
-    if (cacheRef.current[s.src]) return
-    enqueue(i)
-  }
-
-  const enqueue = (i) => {
-    if (!inBounds(i)) return
-    if (enqRef.current.has(i)) return
+  // Queue helpers
+  const enqueueBack = (i) => {
+    if (!inBounds(i) || enqRef.current.has(i)) return
     enqRef.current.add(i)
     queueRef.current.push(i)
     pump()
   }
+  const enqueueFront = (i) => {
+    if (!inBounds(i) || enqRef.current.has(i)) return
+    enqRef.current.add(i)
+    queueRef.current.unshift(i)
+    pump(true) // try to run sooner
+  }
 
-  const pump = () => {
+  // Start warms while respecting concurrency / overlay / tab hidden
+  const pump = (urgent = false) => {
     if (overlay) return
     if (document.hidden) return
     while (inflightRef.current < maxRef.current && queueRef.current.length > 0) {
@@ -716,47 +722,71 @@ function useSmartPreload(slides, index, overlay) {
       if (!s || cacheRef.current[s.src]) continue
       inflightRef.current++
       const start = () => {
-        warmSrc(s.src)
+        warmSrc(s.src, /*priority=*/false)
         inflightRef.current--
         if (queueRef.current.length) pump()
       }
-      if ('requestIdleCallback' in window) {
-        window.requestIdleCallback(start, { timeout: 1500 })
+      if ('requestIdleCallback' in window && !urgent) {
+        window.requestIdleCallback(start, { timeout: 1200 })
       } else {
         setTimeout(start, 0)
       }
     }
   }
 
-  // Neighbors
+  // Public API for hotspot-hover prefetch (make it priority)
+  const prefetch = (i) => {
+    if (!inBounds(i)) return
+    const s = slides[i]
+    if (!s || cacheRef.current[s.src]) return
+    // high-priority: warm immediately
+    warmSrc(s.src, true)
+    // lightly warm its neighbors as well
+    if (inBounds(i + 1)) enqueueFront(i + 1)
+    if (inBounds(i - 1)) enqueueFront(i - 1)
+  }
+
+  // Neighbors around current index:
+  // - next 1–2 slides: priority (fast)
+  // - previous 1 slide: normal
+  // - the rest ahead: queued
   useEffect(() => {
     const c = navigator.connection
     const slow = !!(c && (c.effectiveType === '2g' || c.effectiveType === 'slow-2g' || c.saveData))
-    const AHEAD = slow ? 1 : 3
+    const AHEAD = slow ? 2 : 4   // how many we try to have ready ahead
     const BEHIND = 1
 
-    ;[index + 1, index - 1].forEach(warmIndex)
-    for (let d = 2; d <= AHEAD; d++) warmIndex(index + d)
-    for (let d = 2; d <= BEHIND; d++) warmIndex(index - d)
+    const next1 = index + 1
+    const next2 = index + 2
+
+    if (inBounds(next1)) warmSrc(slides[next1].src, true) // immediate
+    if (inBounds(next2)) warmSrc(slides[next2].src, true) // immediate
+
+    // one behind (helps quick backtaps on touch)
+    if (inBounds(index - 1)) enqueueFront(index - 1)
+
+    // the rest ahead queued politely
+    for (let d = 3; d <= AHEAD; d++) enqueueBack(index + d)
+
     pump()
   }, [index, slides.length, overlay])
 
-  // Long-range sweep
+  // Long-range sweep during idle time (ahead first, then wrap)
   useEffect(() => {
     const order = []
-    for (let i = index + 4; i < slides.length; i++) order.push(i)
+    for (let i = index + 5; i < slides.length; i++) order.push(i)
     for (let i = 0; i < index - 2; i++) order.push(i)
-    order.forEach(enqueue)
+    order.forEach(enqueueBack)
     pump()
   }, [index, slides.length, overlay])
 
-  const prefetch = (i) => warmIndex(i)
-
+  // Also idle-warm the overlay/showreel
   useEffect(() => {
     const src = '/videos/showreel_2025.mp4'
-    if ('requestIdleCallback' in window) requestIdleCallback(() => warmSrc(src))
-    else setTimeout(() => warmSrc(src), 1000)
+    if ('requestIdleCallback' in window) requestIdleCallback(() => warmSrc(src, false))
+    else setTimeout(() => warmSrc(src, false), 800)
   }, [])
 
   return { prefetch }
 }
+
