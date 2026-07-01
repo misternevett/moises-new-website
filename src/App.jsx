@@ -60,6 +60,7 @@ export default function App() {
         <LandingPage
           onOpenPortfolio={openPortfolio}
           onOpenCaseStudies={openCaseStudies}
+          keyboardNavigationDisabled={portfolioOpen || passwordOpen || caseStudyOpen}
         />
 
         {portfolioOpen && <PortfolioOverlay onClose={closePortfolio} />}

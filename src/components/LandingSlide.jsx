@@ -1,4 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import SegmentedToggleSlide from './SegmentedToggleSlide.jsx'
+import VideoTriggerSlide from './VideoTriggerSlide.jsx'
+import VerticalStateSlide from './VerticalStateSlide.jsx'
+
+const STATIC_STAGE_RATIO = '3600 / 2030'
+const HOTSPOT_TOOLTIP_TIMEOUT_MS = 1700
 
 function isVideo(src) {
   return /\.mp4($|\?)/i.test(src)
@@ -49,7 +55,143 @@ function MobileAsset({ asset, slideTitle }) {
   )
 }
 
-export default function LandingSlide({ slide, mode }) {
+function renderHotspotStyle(hotspot) {
+  return {
+    left: hotspot.x,
+    top: hotspot.y,
+    width: hotspot.width,
+    height: hotspot.height,
+  }
+}
+
+function HotspotTooltip({ message }) {
+  return (
+    <span className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[calc(100%+0.6rem)] whitespace-nowrap rounded-full bg-black/80 px-3 py-1 text-[11px] font-light tracking-[0.02em] text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] transition-opacity duration-300">
+      {message}
+    </span>
+  )
+}
+
+function StaticImageHotspots({ hotspots, mode }) {
+  const [tooltipState, setTooltipState] = useState(null)
+  const timeoutRef = useRef(null)
+  const isDesktop = mode === 'desktop'
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
+
+  const showTooltip = (hotspotId, message) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+
+    setTooltipState({ hotspotId, message })
+    timeoutRef.current = setTimeout(() => {
+      setTooltipState(null)
+      timeoutRef.current = null
+    }, HOTSPOT_TOOLTIP_TIMEOUT_MS)
+  }
+
+  const handleCopy = async (event, hotspot) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    try {
+      await navigator.clipboard.writeText(hotspot.value)
+      showTooltip(hotspot.id, hotspot.successMessage || 'Email copied')
+    } catch {
+      showTooltip(hotspot.id, hotspot.failureMessage || 'Copy failed')
+    }
+  }
+
+  return hotspots.map((hotspot) => {
+    const tooltipVisible = tooltipState?.hotspotId === hotspot.id
+    const commonProps = {
+      'aria-label': hotspot.ariaLabel,
+      className: `absolute z-10 block cursor-pointer rounded-[2px] bg-transparent outline-none transition-opacity duration-200 ${
+        isDesktop ? 'hover:opacity-100' : ''
+      }`,
+      style: renderHotspotStyle(hotspot),
+      onClick: (event) => event.stopPropagation(),
+    }
+
+    if (hotspot.action === 'copy') {
+      return (
+        <button
+          key={hotspot.id}
+          type="button"
+          {...commonProps}
+          onClick={(event) => handleCopy(event, hotspot)}
+        >
+          {tooltipVisible ? <HotspotTooltip message={tooltipState.message} /> : null}
+        </button>
+      )
+    }
+
+    return (
+      <a
+        key={hotspot.id}
+        href={hotspot.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        {...commonProps}
+      >
+        {tooltipVisible ? <HotspotTooltip message={tooltipState.message} /> : null}
+      </a>
+    )
+  })
+}
+
+function StaticImageSlide({ slide, mode }) {
+  const stageClasses =
+    mode === 'desktop'
+      ? 'max-h-[calc(100vh-5rem)] max-w-[min(92vw,1600px)]'
+      : 'max-w-3xl'
+  const articleClasses =
+    mode === 'desktop'
+      ? 'flex h-full w-full items-center justify-center px-10 py-10'
+      : 'flex min-h-screen items-center justify-center px-4 pb-28 pt-16'
+
+  return (
+    <article className={`relative overflow-hidden bg-white ${articleClasses}`}>
+      <div
+        className={`relative w-full overflow-hidden bg-white ${stageClasses}`}
+        style={{ aspectRatio: STATIC_STAGE_RATIO }}
+      >
+        <img
+          src={slide.imageSrc}
+          alt={slide.alt}
+          className="block h-full w-full object-contain"
+          draggable={false}
+        />
+        {slide.hotspots?.length ? <StaticImageHotspots hotspots={slide.hotspots} mode={mode} /> : null}
+      </div>
+    </article>
+  )
+}
+
+export default function LandingSlide({ slide, mode, onRequestNext }) {
+  if (slide.type === 'segmented-toggle') {
+    return <SegmentedToggleSlide slide={slide} mode={mode} />
+  }
+
+  if (slide.type === 'static-image') {
+    return <StaticImageSlide slide={slide} mode={mode} />
+  }
+
+  if (slide.type === 'video-trigger') {
+    return <VideoTriggerSlide slide={slide} mode={mode} onRequestNext={onRequestNext} />
+  }
+
+  if (slide.type === 'vertical-b-state') {
+    return <VerticalStateSlide slide={slide} mode={mode} />
+  }
+
   const mobileAssets = [...slide.assets].sort((a, b) => a.mobileOrder - b.mobileOrder)
 
   if (mode === 'mobile') {
