@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+const DESKTOP_STAGE_MAX_HEIGHT = 'calc(100vh - 5rem)'
+
 function buildGridColumns(segmentWidths) {
   return segmentWidths.map((width) => `${width}fr`).join(' ')
 }
@@ -44,11 +46,21 @@ function SegmentImage({ src, alt, style }) {
   )
 }
 
+function getDesktopStageStyle(aspectRatio) {
+  return {
+    aspectRatio: `${aspectRatio}`,
+    width: `min(92vw, calc((100vh - 5rem) * ${aspectRatio}))`,
+    height: `min(${DESKTOP_STAGE_MAX_HEIGHT}, calc(92vw / ${aspectRatio}))`,
+  }
+}
+
 export default function SegmentedToggleSlide({ slide, mode }) {
   const interactive = mode === 'desktop'
+  const isTakeover = mode === 'mobile-takeover'
   const segmentWidths = slide.segments.map((segment) => segment.width ?? 1)
   const stageWidth = segmentWidths.reduce((total, width) => total + width, 0)
   const stageHeight = slide.stageHeight ?? 2030
+  const stageAspectRatio = stageWidth / stageHeight
   const gridTemplateColumns = buildGridColumns(segmentWidths)
   const joinOverlaps = getJoinOverlaps(slide, interactive, slide.segments.length)
   const [states, setStates] = useState(() => slide.segments.map(() => 1))
@@ -68,14 +80,24 @@ export default function SegmentedToggleSlide({ slide, mode }) {
       className={`relative overflow-hidden bg-white ${
         interactive
           ? 'flex h-full w-full items-center justify-center px-10 py-10'
-          : 'flex min-h-screen items-center justify-center px-4 pb-28 pt-16'
+          : isTakeover
+            ? 'h-full w-full bg-white p-0'
+            : 'block w-full bg-white px-2 py-0'
       }`}
     >
       <div
         className={`relative w-full overflow-hidden bg-white ${
-          interactive ? 'max-h-[calc(100vh-5rem)] max-w-[min(92vw,1600px)]' : 'max-w-3xl'
+          interactive
+            ? ''
+            : isTakeover
+              ? 'h-full w-full max-h-none max-w-none'
+              : 'mx-auto max-w-3xl'
         }`}
-        style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
+        style={
+          interactive
+            ? getDesktopStageStyle(stageAspectRatio)
+            : { aspectRatio: `${stageWidth} / ${stageHeight}` }
+        }
       >
         <div
           className="grid h-full w-full items-stretch"

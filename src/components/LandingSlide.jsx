@@ -3,8 +3,17 @@ import SegmentedToggleSlide from './SegmentedToggleSlide.jsx'
 import VideoTriggerSlide from './VideoTriggerSlide.jsx'
 import VerticalStateSlide from './VerticalStateSlide.jsx'
 
-const STATIC_STAGE_RATIO = '3600 / 2030'
+const STATIC_STAGE_RATIO = 3600 / 2030
 const HOTSPOT_TOOLTIP_TIMEOUT_MS = 1700
+const DESKTOP_STAGE_MAX_HEIGHT = 'calc(100vh - 5rem)'
+
+function getDesktopStageStyle(aspectRatio) {
+  return {
+    aspectRatio: `${aspectRatio}`,
+    width: `min(92vw, calc((100vh - 5rem) * ${aspectRatio}))`,
+    height: `min(${DESKTOP_STAGE_MAX_HEIGHT}, calc(92vw / ${aspectRatio}))`,
+  }
+}
 
 function isVideo(src) {
   return /\.mp4($|\?)/i.test(src)
@@ -148,20 +157,26 @@ function StaticImageHotspots({ hotspots, mode }) {
 }
 
 function StaticImageSlide({ slide, mode }) {
+  const isDesktop = mode === 'desktop'
+  const isTakeover = mode === 'mobile-takeover'
   const stageClasses =
-    mode === 'desktop'
-      ? 'max-h-[calc(100vh-5rem)] max-w-[min(92vw,1600px)]'
-      : 'max-w-3xl'
+    isDesktop
+      ? ''
+      : isTakeover
+        ? 'h-full w-full max-h-none max-w-none'
+        : 'mx-auto max-w-3xl'
   const articleClasses =
-    mode === 'desktop'
+    isDesktop
       ? 'flex h-full w-full items-center justify-center px-10 py-10'
-      : 'flex min-h-screen items-center justify-center px-4 pb-28 pt-16'
+      : isTakeover
+        ? 'h-full w-full bg-white p-0'
+        : 'block w-full bg-white px-2 py-0'
 
   return (
     <article className={`relative overflow-hidden bg-white ${articleClasses}`}>
       <div
         className={`relative w-full overflow-hidden bg-white ${stageClasses}`}
-        style={{ aspectRatio: STATIC_STAGE_RATIO }}
+        style={isDesktop ? getDesktopStageStyle(STATIC_STAGE_RATIO) : { aspectRatio: `${STATIC_STAGE_RATIO}` }}
       >
         <img
           src={slide.imageSrc}
@@ -169,7 +184,9 @@ function StaticImageSlide({ slide, mode }) {
           className="block h-full w-full object-contain"
           draggable={false}
         />
-        {slide.hotspots?.length ? <StaticImageHotspots hotspots={slide.hotspots} mode={mode} /> : null}
+        {!isTakeover && slide.hotspots?.length ? (
+          <StaticImageHotspots hotspots={slide.hotspots} mode={mode} />
+        ) : null}
       </div>
     </article>
   )
@@ -196,7 +213,7 @@ export default function LandingSlide({ slide, mode, onRequestNext }) {
 
   if (mode === 'mobile') {
     return (
-      <article className="flex min-h-screen flex-col justify-between gap-8 px-5 pb-28 pt-16">
+      <article className="w-full px-3 py-0">
         <div className="max-w-md space-y-4">
           <p className="text-[10px] uppercase tracking-[0.35em] text-white/45">{slide.eyebrow}</p>
           <h2 className="max-w-sm text-[clamp(2rem,9vw,3.8rem)] font-light leading-[0.95] tracking-[-0.04em]">

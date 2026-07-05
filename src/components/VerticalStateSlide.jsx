@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
-const STAGE_RATIO = '3600 / 2038'
+const STAGE_RATIO = 3600 / 2038
 const SECTION_HEIGHTS = [743, 655, 640]
 const DESKTOP_SEAM_OVERLAP_PX = 4
 const MOBILE_SEAM_OVERLAP_PX = 2
+const DESKTOP_STAGE_MAX_HEIGHT = 'calc(100vh - 5rem)'
 
 function buildSectionStyle(index, interactive) {
   const overlap = interactive ? DESKTOP_SEAM_OVERLAP_PX : MOBILE_SEAM_OVERLAP_PX
@@ -29,8 +30,17 @@ function StageImage({ src, alt }) {
   )
 }
 
+function getDesktopStageStyle(aspectRatio) {
+  return {
+    aspectRatio: `${aspectRatio}`,
+    width: `min(92vw, calc((100vh - 5rem) * ${aspectRatio}))`,
+    height: `min(${DESKTOP_STAGE_MAX_HEIGHT}, calc(92vw / ${aspectRatio}))`,
+  }
+}
+
 export default function VerticalStateSlide({ slide, mode }) {
   const interactive = mode === 'desktop'
+  const isTakeover = mode === 'mobile-takeover'
   const [stateIndex, setStateIndex] = useState(1)
 
   const sections = [
@@ -61,14 +71,20 @@ export default function VerticalStateSlide({ slide, mode }) {
       className={`relative overflow-hidden bg-white ${
         interactive
           ? 'flex h-full w-full items-center justify-center px-10 py-10'
-          : 'flex min-h-screen items-center justify-center px-4 pb-28 pt-16'
+          : isTakeover
+            ? 'h-full w-full bg-white p-0'
+            : 'block w-full bg-white px-2 py-0'
       }`}
     >
       <div
         className={`relative w-full overflow-hidden bg-white ${
-          interactive ? 'max-h-[calc(100vh-5rem)] max-w-[min(92vw,1600px)]' : 'max-w-3xl'
+          interactive
+            ? ''
+            : isTakeover
+              ? 'h-full w-full max-h-none max-w-none'
+              : 'mx-auto max-w-3xl'
         }`}
-        style={{ aspectRatio: STAGE_RATIO }}
+        style={interactive ? getDesktopStageStyle(STAGE_RATIO) : { aspectRatio: `${STAGE_RATIO}` }}
       >
         <div className="flex h-full w-full flex-col items-stretch">
           {sections.map((section, index) => (

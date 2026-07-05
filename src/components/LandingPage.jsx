@@ -5,6 +5,7 @@ export default function LandingPage({
   onOpenPortfolio,
   onOpenCaseStudies,
   keyboardNavigationDisabled = false,
+  hideBottomNav = false,
 }) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-black text-white">
@@ -12,6 +13,7 @@ export default function LandingPage({
       <BottomAccessNav
         onOpenPortfolio={onOpenPortfolio}
         onOpenCaseStudies={onOpenCaseStudies}
+        hidden={hideBottomNav}
       />
     </main>
   )

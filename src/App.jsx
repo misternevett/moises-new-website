@@ -61,6 +61,7 @@ export default function App() {
           onOpenPortfolio={openPortfolio}
           onOpenCaseStudies={openCaseStudies}
           keyboardNavigationDisabled={portfolioOpen || passwordOpen || caseStudyOpen}
+          hideBottomNav={caseStudyOpen}
         />
 
         {portfolioOpen && <PortfolioOverlay onClose={closePortfolio} />}

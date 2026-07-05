@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CONTACT } from '../config.js'
 
 const BUTTONS = [
@@ -14,8 +14,17 @@ const DESKTOP_TRANSITION_MS = 280
 const COLLAPSED_PILL_WIDTH = '24px'
 const COLLAPSED_PILL_HEIGHT = '6px'
 const COLLAPSED_PILL_GAP = '9px'
+const MOBILE_BREAKPOINT_PX = 900
+const MOBILE_COMPACT_BREAKPOINT_PX = 400
 
-function AccessButton({ label, onClick, dimmed, onHoverChange, mobile = false }) {
+function AccessButton({
+  label,
+  onClick,
+  dimmed,
+  onHoverChange,
+  mobile = false,
+  compactMobile = false,
+}) {
   return (
     <button
       type="button"
@@ -24,14 +33,16 @@ function AccessButton({ label, onClick, dimmed, onHoverChange, mobile = false })
       onMouseLeave={mobile ? undefined : () => onHoverChange(false)}
       className={`flex items-center justify-center overflow-hidden bg-black text-white shadow-[0_2px_4px_rgba(0,0,0,0.25)] ${
         mobile
-          ? 'min-h-11 rounded-md border border-white/25 px-3 py-2'
+          ? compactMobile
+            ? 'min-h-10 rounded-md border border-white/25 px-2 py-2'
+            : 'min-h-11 rounded-md border border-white/25 px-3 py-2'
           : 'h-8 w-full rounded-md border border-white/25 px-3 py-2 transition-opacity duration-200'
       } ${dimmed ? 'opacity-40' : 'opacity-100'}`}
       style={{
         fontFamily: BUTTON_FONT,
-        fontSize: '11px',
+        fontSize: mobile ? (compactMobile ? '9px' : '11px') : '11px',
         fontWeight: 400,
-        letterSpacing: '0.02em',
+        letterSpacing: mobile && compactMobile ? '0.01em' : '0.02em',
       }}
     >
       <span className="whitespace-nowrap uppercase">{label}</span>
@@ -39,9 +50,38 @@ function AccessButton({ label, onClick, dimmed, onHoverChange, mobile = false })
   )
 }
 
-export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies }) {
+export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hidden = false }) {
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT_PX : false,
+  )
+  const [isCompactMobileViewport, setIsCompactMobileViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_COMPACT_BREAKPOINT_PX : false,
+  )
   const [expanded, setExpanded] = useState(false)
   const [hoveredId, setHoveredId] = useState(null)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileViewport(window.innerWidth <= MOBILE_BREAKPOINT_PX)
+      setIsCompactMobileViewport(window.innerWidth <= MOBILE_COMPACT_BREAKPOINT_PX)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (hidden) {
+      setExpanded(false)
+      setHoveredId(null)
+      return
+    }
+
+    // Return to the default collapsed three-pill state after overlays close.
+    setExpanded(false)
+    setHoveredId(null)
+  }, [hidden])
 
   const handleAction = (id) => {
     if (id === 'portfolio') {
@@ -57,11 +97,13 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies }) 
     window.open(CONTACT.misuStudio, '_blank', 'noopener,noreferrer')
   }
 
+  const visibilityClass = hidden ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+
   return (
     <>
-      <div className="pointer-events-none fixed bottom-0 right-0 z-40 hidden md:block">
+      <div className={`fixed bottom-0 right-0 z-40 transition-opacity duration-200 ${visibilityClass} ${isMobileViewport ? 'hidden' : 'block'}`}>
         <div
-          className="pointer-events-auto relative h-[14vh] min-h-[8rem] w-[40vw] min-w-[26rem]"
+          className="relative h-[14vh] min-h-[8rem] w-[40vw] min-w-[26rem]"
           onMouseEnter={() => setExpanded(true)}
           onMouseLeave={() => {
             setExpanded(false)
@@ -134,8 +176,8 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies }) 
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/78 px-3 py-3 backdrop-blur md:hidden">
-        <div className="grid grid-cols-3 gap-2">
+      <div className={`fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/78 px-3 py-3 backdrop-blur transition-opacity duration-200 ${visibilityClass} ${isMobileViewport ? 'block' : 'hidden'}`}>
+        <div className={`grid grid-cols-3 ${isCompactMobileViewport ? 'gap-1.5' : 'gap-2'}`}>
           {BUTTONS.map((button) => (
             <AccessButton
               key={button.id}
@@ -144,6 +186,7 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies }) 
               dimmed={false}
               onHoverChange={() => {}}
               mobile
+              compactMobile={isCompactMobileViewport}
             />
           ))}
         </div>

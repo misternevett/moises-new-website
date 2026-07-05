@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { portfolioSlides } from '../data/portfolioSlides.js'
 
 const SLIDES = portfolioSlides
+const TOUCH_SWIPE_BREAKPOINT_PX = 1024
+const SWIPE_THRESHOLD_PX = 52
+const PORTFOLIO_NAVIGATION_LOCK_MS = 140
+const PORTFOLIO_MEDIA_TIMEOUT_MS = 9000
+const PORTFOLIO_LOADER_DELAY_MS = 150
+const PORTFOLIO_MEDIA_STATUS = new Map()
 
 const HOTSPOT_DEBUG_ENABLED =
   typeof window !== 'undefined' &&
@@ -55,6 +61,14 @@ function getAssetFilename(src) {
   return src.split('/').pop() || ''
 }
 
+function getPortfolioMediaStatus(src) {
+  return PORTFOLIO_MEDIA_STATUS.get(src) || 'idle'
+}
+
+function setPortfolioMediaStatus(src, status) {
+  PORTFOLIO_MEDIA_STATUS.set(src, status)
+}
+
 function shouldIgnorePortfolioShortcut(target) {
   if (!(target instanceof HTMLElement)) return false
   if (target.isContentEditable) return true
@@ -64,7 +78,25 @@ function shouldIgnorePortfolioShortcut(target) {
   )
 }
 
-export default function PortfolioSlideshow({ onClose }) {
+function useIsTouchSwipeViewport() {
+  const [isTouchSwipeViewport, setIsTouchSwipeViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= TOUCH_SWIPE_BREAKPOINT_PX : false,
+  )
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsTouchSwipeViewport(window.innerWidth <= TOUCH_SWIPE_BREAKPOINT_PX)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  return isTouchSwipeViewport
+}
+
+export default function PortfolioSlideshow({ onClose, suppressCustomCursor = false }) {
   const [index, setIndex] = useHashIndex(0, SLIDES.length - 1)
   const [showUI, setShowUI] = useState(true)
   const [uiIdleHidden, setUiIdleHidden] = useState(false)
@@ -75,7 +107,20 @@ export default function PortfolioSlideshow({ onClose }) {
   const [overHotspot, setOverHotspot] = useState(false)
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
+  const suppressClickAfterSwipeTimerRef = useRef(null)
+  const navigationLockRef = useRef(false)
+  const navigationLockTimerRef = useRef(null)
+  const swipeGestureRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    deltaX: 0,
+    deltaY: 0,
+    interactiveStart: false,
+    swipeHandled: false,
+  })
   const { prefetch } = useSmartPreload(SLIDES, index)
+  const isTouchSwipeViewport = useIsTouchSwipeViewport()
 
   const UI_IDLE_MS = 5000
   const UI_FADE_MS = 300
@@ -175,15 +220,133 @@ export default function PortfolioSlideshow({ onClose }) {
     if (toastTimer.current) clearTimeout(toastTimer.current)
   }, [])
 
-  const goTo = (targetIndex) => setIndex(clamp(targetIndex, 0, SLIDES.length - 1))
-  const goNext = () => setIndex((current) => clamp(current + 1, 0, SLIDES.length - 1))
-  const goPrev = () => setIndex((current) => clamp(current - 1, 0, SLIDES.length - 1))
+  useEffect(() => () => {
+    if (suppressClickAfterSwipeTimerRef.current) {
+      clearTimeout(suppressClickAfterSwipeTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => () => {
+    if (navigationLockTimerRef.current) {
+      clearTimeout(navigationLockTimerRef.current)
+    }
+  }, [])
+
+  const requestNavigation = (updater) => {
+    if (navigationLockRef.current) return
+
+    navigationLockRef.current = true
+    setIndex(updater)
+
+    if (navigationLockTimerRef.current) {
+      clearTimeout(navigationLockTimerRef.current)
+    }
+
+    navigationLockTimerRef.current = setTimeout(() => {
+      navigationLockRef.current = false
+      navigationLockTimerRef.current = null
+    }, PORTFOLIO_NAVIGATION_LOCK_MS)
+  }
+
+  const goTo = (targetIndex) =>
+    requestNavigation(() => clamp(targetIndex, 0, SLIDES.length - 1))
+  const goNext = () =>
+    requestNavigation((current) => clamp(current + 1, 0, SLIDES.length - 1))
+  const goPrev = () =>
+    requestNavigation((current) => clamp(current - 1, 0, SLIDES.length - 1))
+
+  useEffect(() => {
+    prefetch(index)
+    prefetch(index + 1)
+    prefetch(index - 1)
+  }, [index, prefetch])
+
+  const armSwipeClickSuppression = () => {
+    swipeGestureRef.current.swipeHandled = true
+    if (suppressClickAfterSwipeTimerRef.current) {
+      clearTimeout(suppressClickAfterSwipeTimerRef.current)
+    }
+    suppressClickAfterSwipeTimerRef.current = setTimeout(() => {
+      swipeGestureRef.current.swipeHandled = false
+      suppressClickAfterSwipeTimerRef.current = null
+    }, 400)
+  }
+
+  const handleTouchStart = (event) => {
+    if (!isTouchSwipeViewport) return
+
+    const touch = event.touches?.[0]
+    if (!touch) return
+    const target =
+      event.target instanceof HTMLElement ? event.target : null
+
+    swipeGestureRef.current = {
+      active: true,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      deltaX: 0,
+      deltaY: 0,
+      interactiveStart: Boolean(target?.closest('button, a')),
+      swipeHandled: swipeGestureRef.current.swipeHandled,
+    }
+  }
+
+  const handleTouchMove = (event) => {
+    if (!isTouchSwipeViewport || !swipeGestureRef.current.active) return
+
+    const touch = event.touches?.[0]
+    if (!touch) return
+
+    swipeGestureRef.current.deltaX = touch.clientX - swipeGestureRef.current.startX
+    swipeGestureRef.current.deltaY = touch.clientY - swipeGestureRef.current.startY
+  }
+
+  const handleTouchEnd = () => {
+    if (!isTouchSwipeViewport || !swipeGestureRef.current.active) return
+
+    const { deltaX, deltaY } = swipeGestureRef.current
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+    const isIntentionalHorizontalSwipe = absX >= SWIPE_THRESHOLD_PX && absX > absY
+
+    swipeGestureRef.current.active = false
+
+    if (!isIntentionalHorizontalSwipe) return
+
+    armSwipeClickSuppression()
+
+    if (deltaX < 0) {
+      goNext()
+      return
+    }
+
+    goPrev()
+  }
 
   const uiVisible = showUI && !uiIdleHidden
+  const customCursorSuppressed = overHotspot || suppressCustomCursor
 
   return (
-    <div className={`h-screen w-screen overflow-hidden bg-black text-white select-none ${!overHotspot ? 'cursor-none' : ''}`}>
-      {!overHotspot && (
+    <div
+      className={`h-screen w-screen overflow-hidden bg-black text-white select-none ${!customCursorSuppressed ? 'cursor-none' : ''}`}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => {
+        swipeGestureRef.current.active = false
+      }}
+      onClickCapture={(event) => {
+        if (!swipeGestureRef.current.swipeHandled) return
+        event.preventDefault()
+        event.stopPropagation()
+        swipeGestureRef.current.swipeHandled = false
+        if (suppressClickAfterSwipeTimerRef.current) {
+          clearTimeout(suppressClickAfterSwipeTimerRef.current)
+          suppressClickAfterSwipeTimerRef.current = null
+        }
+      }}
+    >
+      {!customCursorSuppressed && (
         <>
           <button
             aria-label={index === 0 ? 'Next' : 'Previous'}
@@ -237,7 +400,7 @@ export default function PortfolioSlideshow({ onClose }) {
         </div>
       </div>
 
-      {!overHotspot && (
+      {!customCursorSuppressed && (
         <CursorGhost
           x={cursorPos.x}
           y={cursorPos.y}
@@ -274,45 +437,117 @@ function MediaSlide({
   onPrefetch,
   debugHotspots = false,
 }) {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => getPortfolioMediaStatus(slide?.src) !== 'ready')
   const [showLoader, setShowLoader] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
+  const [retryNonce, setRetryNonce] = useState(0)
+  const videoRef = useRef(null)
 
   useEffect(() => {
-    setLoading(true)
+    const cachedStatus = getPortfolioMediaStatus(slide?.src)
+
+    setLoading(cachedStatus !== 'ready')
     setShowLoader(false)
-    const timer = setTimeout(() => setShowLoader(true), 200)
-    return () => clearTimeout(timer)
-  }, [slide?.src])
+    setLoadError(cachedStatus === 'error')
+    setTimedOut(false)
+
+    if (cachedStatus === 'ready') return undefined
+
+    const loaderTimer = setTimeout(() => setShowLoader(true), PORTFOLIO_LOADER_DELAY_MS)
+    const timeoutTimer = setTimeout(() => {
+      setTimedOut(true)
+    }, PORTFOLIO_MEDIA_TIMEOUT_MS)
+
+    return () => {
+      clearTimeout(loaderTimer)
+      clearTimeout(timeoutTimer)
+    }
+  }, [retryNonce, slide?.src])
 
   useEffect(() => () => {
     if (onHotspotHover) onHotspotHover(false)
   }, [onHotspotHover])
 
+  useEffect(() => {
+    if (slide?.type !== 'video') return undefined
+
+    const video = videoRef.current
+    if (!video) return undefined
+
+    video.play().catch(() => {})
+    return undefined
+  }, [retryNonce, slide?.src, slide?.type])
+
+  const mediaStyle = {
+    width: 'auto',
+    height: 'auto',
+    maxWidth: 'calc(100vw - 3rem)',
+    maxHeight: 'calc(100vh - 3rem)',
+  }
+
+  const handleReady = () => {
+    if (!slide?.src) return
+    setPortfolioMediaStatus(slide.src, 'ready')
+    setLoading(false)
+    setLoadError(false)
+    setTimedOut(false)
+  }
+
+  const handleError = () => {
+    if (!slide?.src) return
+    setPortfolioMediaStatus(slide.src, 'error')
+    setLoadError(true)
+    setLoading(false)
+    setTimedOut(false)
+  }
+
+  const handleRetry = () => {
+    if (!slide?.src) return
+    setPortfolioMediaStatus(slide.src, 'loading')
+    setLoading(true)
+    setShowLoader(true)
+    setLoadError(false)
+    setTimedOut(false)
+    setRetryNonce((current) => current + 1)
+  }
+
+  const showLoadingOverlay = (loading || timedOut || loadError) && showLoader
+  const isMediaReady = !loading && !loadError
+
   return (
-    <div className="relative flex h-full w-full items-center justify-center bg-black">
-      <div className="relative inline-flex max-h-full max-w-full items-center justify-center">
+    <div className="relative flex h-full w-full items-center justify-center bg-black p-6">
+      <div className="relative inline-flex items-center justify-center">
         {slide.type === 'image' ? (
           <img
+            key={`${slide.src}-${retryNonce}`}
             src={slide.src}
             alt={slide.alt || ''}
-            className="block max-h-full max-w-full select-none object-contain"
+            className="block select-none object-contain"
+            style={{ ...mediaStyle, opacity: isMediaReady ? 1 : 0 }}
             draggable={false}
-            onLoad={() => setLoading(false)}
+            onLoad={handleReady}
+            onError={handleError}
           />
         ) : (
           <video
+            key={`${slide.src}-${retryNonce}`}
+            ref={videoRef}
             src={slide.src}
             autoPlay
             loop
             muted
             playsInline
             preload="auto"
-            className="block max-h-full max-w-full object-contain"
-            onLoadedData={() => setLoading(false)}
+            className="block object-contain"
+            style={{ ...mediaStyle, opacity: isMediaReady ? 1 : 0 }}
+            onCanPlay={handleReady}
+            onLoadedData={handleReady}
+            onError={handleError}
           />
         )}
 
-        {hotspots.length > 0 && (
+        {hotspots.length > 0 && isMediaReady && (
           <div className="pointer-events-none absolute inset-0 z-30">
           {hotspots.map((hotspot, index) => (
             <button
@@ -386,8 +621,75 @@ function MediaSlide({
         )}
       </div>
 
-      {loading && showLoader && <ClockLoader />}
+      {showLoadingOverlay ? (
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-3">
+          <PortfolioLoaderClock />
+          {timedOut || loadError ? (
+            <div className="pointer-events-auto flex flex-col items-center gap-2 text-center">
+              <p className="text-[11px] tracking-[0.04em] text-white/70">
+                {loadError
+                  ? 'This portfolio slide could not load.'
+                  : 'This portfolio slide is taking longer to load.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.08em] text-white"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
+  )
+}
+
+function PortfolioLoaderClock() {
+  return (
+    <>
+      <style>{`
+        .portfolio-loader-clock {
+          position: relative;
+          width: 58px;
+          height: 58px;
+          border-radius: 999px;
+          border: 2px solid rgba(255, 255, 255, 0.95);
+        }
+        .portfolio-loader-clock::before,
+        .portfolio-loader-clock::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          width: 2px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.95);
+          transform-origin: 50% calc(100% - 1px);
+        }
+        .portfolio-loader-clock::before {
+          top: 11px;
+          height: 23px;
+          margin-left: -1px;
+          animation: portfolioLoaderMinute 2s linear infinite;
+        }
+        .portfolio-loader-clock::after {
+          top: 17px;
+          height: 17px;
+          margin-left: -1px;
+          animation: portfolioLoaderHour 12s linear infinite;
+        }
+        @keyframes portfolioLoaderMinute {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes portfolioLoaderHour {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      <span className="portfolio-loader-clock" aria-hidden="true" />
+    </>
   )
 }
 
@@ -479,6 +781,9 @@ function useSmartPreload(slides, index) {
   const warmSrc = (src, priority = false) => {
     if (cacheRef.current[src]) return
     cacheRef.current[src] = true
+    if (getPortfolioMediaStatus(src) === 'idle') {
+      setPortfolioMediaStatus(src, 'loading')
+    }
 
     try {
       const link = document.createElement('link')
@@ -498,8 +803,14 @@ function useSmartPreload(slides, index) {
       video.removeAttribute('src')
       video.load()
     }
-    video.addEventListener('loadeddata', cleanup, { once: true })
-    video.addEventListener('error', cleanup, { once: true })
+    video.addEventListener('loadeddata', () => {
+      setPortfolioMediaStatus(src, 'ready')
+      cleanup()
+    }, { once: true })
+    video.addEventListener('error', () => {
+      setPortfolioMediaStatus(src, 'error')
+      cleanup()
+    }, { once: true })
     try {
       video.load()
     } catch {
@@ -559,9 +870,10 @@ function useSmartPreload(slides, index) {
     const slow = Boolean(connection && (connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g' || connection.saveData))
     const ahead = slow ? 2 : 4
 
+    warmSrc(slides[index].src, true)
     if (inBounds(index + 1)) warmSrc(slides[index + 1].src, true)
-    if (inBounds(index + 2)) warmSrc(slides[index + 2].src, true)
-    if (inBounds(index - 1)) enqueueFront(index - 1)
+    if (inBounds(index - 1)) warmSrc(slides[index - 1].src, true)
+    if (inBounds(index + 2)) enqueueFront(index + 2)
 
     for (let distance = 3; distance <= ahead; distance += 1) {
       enqueueBack(index + distance)

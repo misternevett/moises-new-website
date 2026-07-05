@@ -6,6 +6,7 @@ const TOP_HOVER_RATIO = 0.18
 
 export default function PortfolioOverlay({ onClose }) {
   const [closeVisible, setCloseVisible] = useState(true)
+  const [closeHovered, setCloseHovered] = useState(false)
   const idleTimerRef = useRef(null)
   const closeVisibleRef = useRef(true)
 
@@ -63,11 +64,15 @@ export default function PortfolioOverlay({ onClose }) {
     >
       <button
         type="button"
+        onMouseEnter={() => setCloseHovered(true)}
+        onMouseLeave={() => setCloseHovered(false)}
+        onFocus={() => setCloseHovered(true)}
+        onBlur={() => setCloseHovered(false)}
         onClick={(event) => {
           event.stopPropagation()
           onClose?.()
         }}
-        className={`fixed right-5 top-5 z-[140] transition-opacity duration-300 ${
+        className={`fixed right-5 top-5 z-[140] cursor-pointer transition-opacity duration-300 ${
           closeVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
         aria-label="Close portfolio"
@@ -81,7 +86,7 @@ export default function PortfolioOverlay({ onClose }) {
         />
       </button>
 
-      <PortfolioSlideshow onClose={onClose} />
+      <PortfolioSlideshow onClose={onClose} suppressCustomCursor={closeHovered} />
     </div>
   )
 }
