@@ -1,4 +1,5 @@
 import sheets from './caseStudiesSource.json'
+import { assetUrl } from '../utils/assetUrl.js'
 
 function normalizeCopy(value) {
   return String(value || '')
@@ -76,7 +77,10 @@ function parseBodySections(rawValue, mediaMap) {
 
 function buildMediaMap(folder, tokenMap) {
   return Object.fromEntries(
-    Object.entries(tokenMap).map(([token, filename]) => [token, `/case-studies/${folder}/${filename}`]),
+    Object.entries(tokenMap).map(([token, filename]) => [
+      token,
+      assetUrl(`/case-studies/${folder}/${filename}`),
+    ]),
   )
 }
 
@@ -88,8 +92,8 @@ const CASE_STUDY_CONFIGS = [
     brand: 'Rabanne',
     id: 'rabanne',
     folder: 'rabanne',
-    thumbnail: '/case-studies/rabanne/thumbnail.png',
-    heroImage: '/case-studies/rabanne/hero.mp4',
+    thumbnail: assetUrl('/case-studies/rabanne/thumbnail.png'),
+    heroImage: assetUrl('/case-studies/rabanne/hero.mp4'),
     mediaMap: buildMediaMap('rabanne', {
       R_1: 'hero.mp4',
       R_2: 'R_2.png',
@@ -113,8 +117,8 @@ const CASE_STUDY_CONFIGS = [
     brand: 'The Dubai Mall',
     id: 'dubai-mall',
     folder: 'the-dubai-mall',
-    thumbnail: '/case-studies/the-dubai-mall/thumbnail.png',
-    heroImage: '/case-studies/the-dubai-mall/hero.mp4',
+    thumbnail: assetUrl('/case-studies/the-dubai-mall/thumbnail.png'),
+    heroImage: assetUrl('/case-studies/the-dubai-mall/hero.mp4'),
     mediaMap: buildMediaMap('the-dubai-mall', {
       TDM_1: 'hero.mp4',
       TDM_2: 'TDM_2.mp4',
@@ -136,8 +140,8 @@ const CASE_STUDY_CONFIGS = [
     brand: 'The Fourth',
     id: 'the-fourth',
     folder: 'the-fourth',
-    thumbnail: '/case-studies/the-fourth/F_Thumbnail.png',
-    heroImage: '/case-studies/the-fourth/hero.png',
+    thumbnail: assetUrl('/case-studies/the-fourth/F_Thumbnail.png'),
+    heroImage: assetUrl('/case-studies/the-fourth/hero.png'),
     mediaMap: buildMediaMap('the-fourth', {
       F_1: 'hero.png',
       F_2: 'F_2.png',

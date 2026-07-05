@@ -1,3 +1,5 @@
+import { assetUrl } from '../utils/assetUrl.js'
+
 const PORTFOLIO_VIDEO_FILENAMES = [
   'D_2.mp4',
   'D_3.mp4',
@@ -53,7 +55,7 @@ const PORTFOLIO_VIDEO_FILENAMES = [
 
 export const portfolioSlides = PORTFOLIO_VIDEO_FILENAMES.map((filename) => ({
   type: 'video',
-  src: `/portfolio-assets/${filename}`,
+  src: assetUrl(`/portfolio-assets/${filename}`),
   alt: filename.replace('.mp4', ''),
 }))
 

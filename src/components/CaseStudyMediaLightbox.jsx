@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const LIGHTBOX_EXIT_MS = 220
 const LIGHTBOX_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
@@ -113,7 +114,7 @@ export default function CaseStudyMediaLightbox({ media, onClose }) {
         aria-label="Close fullscreen media"
       >
         <img
-          src="/icons/close-button.png"
+          src={assetUrl('/icons/close-button.png')}
           alt=""
           className="block h-5 w-5 select-none object-contain"
           draggable={false}

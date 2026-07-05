@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import PortfolioSlideshow from './PortfolioSlideshow.jsx'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const CLOSE_IDLE_MS = 8000
 const TOP_HOVER_RATIO = 0.18
@@ -78,7 +79,7 @@ export default function PortfolioOverlay({ onClose }) {
         aria-label="Close portfolio"
       >
         <img
-          src="/icons/close-button.png"
+          src={assetUrl('/icons/close-button.png')}
           alt=""
           className="block select-none object-contain"
           style={{ width: '28px', height: '28px' }}

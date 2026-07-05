@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import LandingSlide from './LandingSlide.jsx'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const STATIC_STAGE_RATIO = 3600 / 2030
 const VIDEO_TRIGGER_RATIO = 3603 / 2030
@@ -113,7 +114,7 @@ export default function MobileSlideTakeover({ slide, onClose }) {
         }}
       >
         <img
-          src="/icons/close-button.png"
+          src={assetUrl('/icons/close-button.png')}
           alt=""
           className="block h-6 w-6 select-none object-contain"
           draggable={false}

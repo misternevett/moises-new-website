@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { portfolioSlides } from '../data/portfolioSlides.js'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const SLIDES = portfolioSlides
 const TOUCH_SWIPE_BREAKPOINT_PX = 1024
@@ -704,10 +705,10 @@ function CursorGhost({ x, y, variant, visible, fadeMs = 300 }) {
 
   const src =
     variant === 'reload'
-      ? '/cursors/reload.svg'
+      ? assetUrl('/cursors/reload.svg')
       : variant === 'prev'
-        ? '/cursors/left.svg'
-        : '/cursors/right.svg'
+        ? assetUrl('/cursors/left.svg')
+        : assetUrl('/cursors/right.svg')
 
   return (
     <div

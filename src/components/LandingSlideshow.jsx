@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { landingSlides } from '../data/landingSlides.js'
 import LandingSlide from './LandingSlide.jsx'
 import MobileSlideTakeover from './MobileSlideTakeover.jsx'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const MOBILE_BREAKPOINT_PX = 900
 const MOBILE_IDLE_DELAY_MS = 1700
@@ -22,8 +23,8 @@ const MOBILE_TAKEOVER_SLIDE_IDS = new Set([
   'slide-09',
 ])
 const DESKTOP_CURSOR = {
-  prev: "url('/cursors/left.svg') 16 16, w-resize",
-  next: "url('/cursors/right.svg') 16 16, e-resize",
+  prev: `url('${assetUrl('/cursors/left.svg')}') 16 16, w-resize`,
+  next: `url('${assetUrl('/cursors/right.svg')}') 16 16, e-resize`,
   neutral: 'default',
 }
 

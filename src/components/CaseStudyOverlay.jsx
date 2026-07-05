@@ -3,6 +3,7 @@ import { caseStudies } from '../data/caseStudies.js'
 import CaseStudyDetail from './CaseStudyDetail.jsx'
 import CaseStudyMediaLightbox from './CaseStudyMediaLightbox.jsx'
 import CaseStudyTabs from './CaseStudyTabs.jsx'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const OVERLAY_EXIT_MS = 260
 const AUTO_CLOSE_ARM_SCROLL_PX = 72
@@ -181,7 +182,7 @@ export default function CaseStudyOverlay({ onClose }) {
         aria-label="Close case studies"
       >
         <img
-          src="/icons/close-button.png"
+          src={assetUrl('/icons/close-button.png')}
           alt=""
           className="block h-5 w-5 select-none object-contain"
           draggable={false}
