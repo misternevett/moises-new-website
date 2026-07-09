@@ -53,14 +53,21 @@ const PORTFOLIO_VIDEO_FILENAMES = [
   'D_54.mp4',
 ]
 
-export const portfolioSlides = PORTFOLIO_VIDEO_FILENAMES.map((filename) => ({
-  type: 'video',
-  src: assetUrl(`/portfolio-assets/${filename}`),
-  alt: filename.replace('.mp4', ''),
-}))
+export const portfolioSlides = [
+  {
+    type: 'image',
+    src: assetUrl('/portfolio-assets/D_1.png'),
+    alt: 'D_1',
+  },
+  ...PORTFOLIO_VIDEO_FILENAMES.map((filename) => ({
+    type: 'video',
+    src: assetUrl(`/portfolio-assets/${filename}`),
+    alt: filename.replace('.mp4', ''),
+  })),
+]
 
 export const portfolioSlideCount = portfolioSlides.length
-export const hasPortfolioD1 = PORTFOLIO_VIDEO_FILENAMES.includes('D_1.mp4')
+export const hasPortfolioD1 = true
 export const portfolioSlideIndexByAsset = new Map(
   portfolioSlides.map((slide, index) => [slide.alt, index]),
 )

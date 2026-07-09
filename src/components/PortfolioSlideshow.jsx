@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { portfolioSlides } from '../data/portfolioSlides.js'
 import { assetUrl } from '../utils/assetUrl.js'
 
@@ -8,6 +8,7 @@ const SWIPE_THRESHOLD_PX = 52
 const PORTFOLIO_NAVIGATION_LOCK_MS = 140
 const PORTFOLIO_MEDIA_TIMEOUT_MS = 9000
 const PORTFOLIO_LOADER_DELAY_MS = 150
+const PORTFOLIO_INTRO_AUTO_ADVANCE_MS = 3000
 const PORTFOLIO_MEDIA_STATUS = new Map()
 
 const HOTSPOT_DEBUG_ENABLED =
@@ -15,6 +16,16 @@ const HOTSPOT_DEBUG_ENABLED =
   new URLSearchParams(window.location.search).get('hotspots') === 'debug'
 
 const PORTFOLIO_HOTSPOTS = {
+  'D_1.png': [
+    {
+      id: 'intro-email',
+      copy: 'moisesnevett@gmail.com',
+      toast: 'Email copied to clipboard',
+      toastDuration: 1700,
+      label: 'Copy intro email address',
+      rect: { left: 76.2, top: 7.2, width: 20.4, height: 3.9 },
+    },
+  ],
   'D_2.mp4': [
     { id: 'rabanne', targetAsset: 'D_7.mp4', rect: { left: 8, top: 33.5, width: 33, height: 4 } },
     { id: 'zegna', targetAsset: 'D_33.mp4', rect: { left: 8, top: 38, width: 33, height: 4 } },
@@ -75,7 +86,7 @@ function shouldIgnorePortfolioShortcut(target) {
   if (target.isContentEditable) return true
 
   return Boolean(
-    target.closest('input, textarea, select, button, [contenteditable="true"]'),
+    target.closest('input, textarea, select, [contenteditable="true"]'),
   )
 }
 
@@ -111,6 +122,8 @@ export default function PortfolioSlideshow({ onClose, suppressCustomCursor = fal
   const suppressClickAfterSwipeTimerRef = useRef(null)
   const navigationLockRef = useRef(false)
   const navigationLockTimerRef = useRef(null)
+  const introAutoAdvanceTimerRef = useRef(null)
+  const introAutoAdvanceConsumedRef = useRef(false)
   const swipeGestureRef = useRef({
     active: false,
     startX: 0,
@@ -130,7 +143,24 @@ export default function PortfolioSlideshow({ onClose, suppressCustomCursor = fal
   const currentAssetFilename = getAssetFilename(SLIDES[index]?.src || '')
   const hotspots = PORTFOLIO_HOTSPOTS[currentAssetFilename] || []
 
-  const goToPortfolioAsset = (targetAssetFilename) => {
+  const clearIntroAutoAdvance = useCallback((markConsumed = false) => {
+    if (introAutoAdvanceTimerRef.current) {
+      clearTimeout(introAutoAdvanceTimerRef.current)
+      introAutoAdvanceTimerRef.current = null
+    }
+
+    if (markConsumed) {
+      introAutoAdvanceConsumedRef.current = true
+    }
+  }, [])
+
+  const showToast = useCallback((message, duration = 1200) => {
+    setToast(message)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), duration)
+  }, [])
+
+  const goToPortfolioAsset = useCallback((targetAssetFilename) => {
     const targetIndex = SLIDES.findIndex((slide) => slide.src.endsWith(`/${targetAssetFilename}`))
 
     if (targetIndex === -1) {
@@ -140,36 +170,7 @@ export default function PortfolioSlideshow({ onClose, suppressCustomCursor = fal
     }
 
     setIndex(targetIndex)
-  }
-
-  const showToast = (message, duration = 1200) => {
-    setToast(message)
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), duration)
-  }
-
-  useEffect(() => {
-    const onKey = (event) => {
-      if (shouldIgnorePortfolioShortcut(event.target)) return
-
-      if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        goNext()
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        goPrev()
-      } else if (event.key.toLowerCase() === 'f' || event.key === 'Home') {
-        event.preventDefault()
-        goTo(0)
-      } else if (event.key === 'Escape') {
-        event.preventDefault()
-        onClose?.()
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [setIndex, showToast])
 
   useEffect(() => {
     const resetUiIdle = () => {
@@ -233,8 +234,16 @@ export default function PortfolioSlideshow({ onClose, suppressCustomCursor = fal
     }
   }, [])
 
-  const requestNavigation = (updater) => {
+  useEffect(() => () => {
+    clearIntroAutoAdvance()
+  }, [clearIntroAutoAdvance])
+
+  const requestNavigation = useCallback((updater, source = 'user') => {
     if (navigationLockRef.current) return
+
+    if (source === 'user') {
+      clearIntroAutoAdvance(true)
+    }
 
     navigationLockRef.current = true
     setIndex(updater)
@@ -247,20 +256,63 @@ export default function PortfolioSlideshow({ onClose, suppressCustomCursor = fal
       navigationLockRef.current = false
       navigationLockTimerRef.current = null
     }, PORTFOLIO_NAVIGATION_LOCK_MS)
-  }
+  }, [clearIntroAutoAdvance, setIndex])
 
-  const goTo = (targetIndex) =>
-    requestNavigation(() => clamp(targetIndex, 0, SLIDES.length - 1))
-  const goNext = () =>
-    requestNavigation((current) => clamp(current + 1, 0, SLIDES.length - 1))
-  const goPrev = () =>
-    requestNavigation((current) => clamp(current - 1, 0, SLIDES.length - 1))
+  const goTo = useCallback((targetIndex, source = 'user') =>
+    requestNavigation(() => clamp(targetIndex, 0, SLIDES.length - 1), source),
+  [requestNavigation])
+  const goNext = useCallback((source = 'user') =>
+    requestNavigation((current) => clamp(current + 1, 0, SLIDES.length - 1), source),
+  [requestNavigation])
+  const goPrev = useCallback((source = 'user') =>
+    requestNavigation((current) => clamp(current - 1, 0, SLIDES.length - 1), source),
+  [requestNavigation])
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (shouldIgnorePortfolioShortcut(event.target)) return
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        goNext()
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        goPrev()
+      } else if (event.key.toLowerCase() === 'f' || event.key === 'Home') {
+        event.preventDefault()
+        goTo(0)
+      } else if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose?.()
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [goNext, goPrev, goTo, onClose])
 
   useEffect(() => {
     prefetch(index)
     prefetch(index + 1)
     prefetch(index - 1)
   }, [index, prefetch])
+
+  useEffect(() => {
+    if (introAutoAdvanceConsumedRef.current || index !== 0) return undefined
+
+    introAutoAdvanceTimerRef.current = setTimeout(() => {
+      introAutoAdvanceConsumedRef.current = true
+      introAutoAdvanceTimerRef.current = null
+      goNext('auto')
+    }, PORTFOLIO_INTRO_AUTO_ADVANCE_MS)
+
+    return () => {
+      if (introAutoAdvanceTimerRef.current) {
+        clearTimeout(introAutoAdvanceTimerRef.current)
+        introAutoAdvanceTimerRef.current = null
+      }
+    }
+  }, [goNext, index])
 
   const armSwipeClickSuppression = () => {
     swipeGestureRef.current.swipeHandled = true
@@ -524,7 +576,7 @@ function MediaSlide({
             key={`${slide.src}-${retryNonce}`}
             src={slide.src}
             alt={slide.alt || ''}
-            className="block select-none object-contain"
+            className="block select-none object-contain transition-opacity duration-500 ease-out"
             style={{ ...mediaStyle, opacity: isMediaReady ? 1 : 0 }}
             draggable={false}
             onLoad={handleReady}
@@ -540,7 +592,7 @@ function MediaSlide({
             muted
             playsInline
             preload="auto"
-            className="block object-contain"
+            className="block object-contain transition-opacity duration-500 ease-out"
             style={{ ...mediaStyle, opacity: isMediaReady ? 1 : 0 }}
             onCanPlay={handleReady}
             onLoadedData={handleReady}
@@ -779,37 +831,49 @@ function useSmartPreload(slides, index) {
 
   const inBounds = (slideIndex) => slideIndex >= 0 && slideIndex < slides.length
 
-  const warmSrc = (src, priority = false) => {
-    if (cacheRef.current[src]) return
-    cacheRef.current[src] = true
-    if (getPortfolioMediaStatus(src) === 'idle') {
-      setPortfolioMediaStatus(src, 'loading')
+  const warmSlide = (slide, priority = false) => {
+    if (!slide?.src || cacheRef.current[slide.src]) return
+    cacheRef.current[slide.src] = true
+    if (getPortfolioMediaStatus(slide.src) === 'idle') {
+      setPortfolioMediaStatus(slide.src, 'loading')
     }
 
     try {
       const link = document.createElement('link')
       link.rel = priority ? 'preload' : 'prefetch'
-      if (priority) link.as = 'video'
-      link.href = src
+      if (priority) link.as = slide.type === 'image' ? 'image' : 'video'
+      link.href = slide.src
       document.head.appendChild(link)
     } catch {
       // noop
     }
 
+    if (slide.type === 'image') {
+      const image = new Image()
+      image.onload = () => {
+        setPortfolioMediaStatus(slide.src, 'ready')
+      }
+      image.onerror = () => {
+        setPortfolioMediaStatus(slide.src, 'error')
+      }
+      image.src = slide.src
+      return
+    }
+
     const video = document.createElement('video')
     video.preload = priority ? 'auto' : 'metadata'
     video.muted = true
-    video.src = src
+    video.src = slide.src
     const cleanup = () => {
       video.removeAttribute('src')
       video.load()
     }
     video.addEventListener('loadeddata', () => {
-      setPortfolioMediaStatus(src, 'ready')
+      setPortfolioMediaStatus(slide.src, 'ready')
       cleanup()
     }, { once: true })
     video.addEventListener('error', () => {
-      setPortfolioMediaStatus(src, 'error')
+      setPortfolioMediaStatus(slide.src, 'error')
       cleanup()
     }, { once: true })
     try {
@@ -829,7 +893,7 @@ function useSmartPreload(slides, index) {
 
       inflightRef.current += 1
       const start = () => {
-        warmSrc(slide.src, false)
+        warmSlide(slide, false)
         inflightRef.current -= 1
         if (queueRef.current.length) pump()
       }
@@ -861,7 +925,7 @@ function useSmartPreload(slides, index) {
     const slide = slides[slideIndex]
     if (!slide || cacheRef.current[slide.src]) return
 
-    warmSrc(slide.src, true)
+    warmSlide(slide, true)
     if (inBounds(slideIndex + 1)) enqueueFront(slideIndex + 1)
     if (inBounds(slideIndex - 1)) enqueueFront(slideIndex - 1)
   }
@@ -871,9 +935,9 @@ function useSmartPreload(slides, index) {
     const slow = Boolean(connection && (connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g' || connection.saveData))
     const ahead = slow ? 2 : 4
 
-    warmSrc(slides[index].src, true)
-    if (inBounds(index + 1)) warmSrc(slides[index + 1].src, true)
-    if (inBounds(index - 1)) warmSrc(slides[index - 1].src, true)
+    warmSlide(slides[index], true)
+    if (inBounds(index + 1)) warmSlide(slides[index + 1], true)
+    if (inBounds(index - 1)) warmSlide(slides[index - 1], true)
     if (inBounds(index + 2)) enqueueFront(index + 2)
 
     for (let distance = 3; distance <= ahead; distance += 1) {
