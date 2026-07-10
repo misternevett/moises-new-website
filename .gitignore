@@ -3,6 +3,7 @@ dist/
 .DS_Store
 .env
 reference/
+_local-asset-archive/
 public/_asset-optimisation-review/
 public/_asset-originals-backup/
 public/portfolio-assets-original/
