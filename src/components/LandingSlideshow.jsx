@@ -6,6 +6,7 @@ import { assetUrl } from '../utils/assetUrl.js'
 
 const MOBILE_BREAKPOINT_PX = 900
 const MOBILE_IDLE_DELAY_MS = 1700
+const MOBILE_TOUCH_RESUME_DELAY_MS = 6500
 const MOBILE_AUTO_SCROLL_PX_PER_FRAME = 0.4
 const DEBUG_MOBILE_IDLE_DELAY_MS = 500
 const DEBUG_MOBILE_AUTO_SCROLL_PX_PER_FRAME = 0.7
@@ -117,6 +118,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
   const idleTimerIdRef = useRef(null)
   const isRunningRef = useRef(false)
   const isAutoScrollingRef = useRef(false)
+  const autoScrollCarryRef = useRef(0)
   const lastFrameTimeRef = useRef(0)
   const lastScrollTopRef = useRef(0)
   const setHeightRef = useRef(0)
@@ -359,6 +361,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       lastPauseReasonRef.current = reason
       isRunningRef.current = false
       isAutoScrollingRef.current = false
+      autoScrollCarryRef.current = 0
       lastFrameTimeRef.current = 0
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current)
@@ -406,18 +409,32 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       lastFrameTimeRef.current = timestamp
 
       const previousScrollTop = resolvedTarget.element.scrollTop
-      const nextScrollTop = previousScrollTop + autoScrollStep * frameDelta
+      const pendingAdvance = autoScrollCarryRef.current + autoScrollStep * frameDelta
+      const wholePixelAdvance = Math.trunc(pendingAdvance)
+      autoScrollCarryRef.current = pendingAdvance - wholePixelAdvance
 
-      isAutoScrollingRef.current = true
-      setTargetScrollTop(resolvedTarget, nextScrollTop)
-      normalizeScrollPosition(resolvedTarget)
-      clearAutoScrollGuardSoon()
+      let updatedScrollTop = previousScrollTop
 
-      const updatedScrollTop = resolvedTarget.element.scrollTop
+      if (wholePixelAdvance > 0) {
+        const nextScrollTop = previousScrollTop + wholePixelAdvance
+
+        isAutoScrollingRef.current = true
+        setTargetScrollTop(resolvedTarget, nextScrollTop)
+        normalizeScrollPosition(resolvedTarget)
+        clearAutoScrollGuardSoon()
+
+        updatedScrollTop = resolvedTarget.element.scrollTop
+      }
 
       lastScrollTopRef.current = previousScrollTop
       lastDeltaRef.current = updatedScrollTop - previousScrollTop
       framesAdvancedRef.current += 1
+
+      if (wholePixelAdvance === 0) {
+        syncDebugState()
+        rafIdRef.current = requestAnimationFrame(tick)
+        return
+      }
 
       if (Math.abs(lastDeltaRef.current) > 0.01) {
         stuckCountRef.current = 0
@@ -449,6 +466,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
 
       clearIdleTimer()
       isRunningRef.current = true
+      autoScrollCarryRef.current = 0
       lastFrameTimeRef.current = 0
       lastStartAtRef.current = Date.now()
       lastMovementAtRef.current = null
@@ -460,7 +478,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       syncDebugState()
     }
 
-    const scheduleResume = (reason = 'idle') => {
+    const scheduleResume = (reason = 'idle', delay = idleDelay) => {
       stopAutoScroll(reason)
       clearIdleTimer()
       if (!canAutoScrollNow()) {
@@ -470,7 +488,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       idleTimerIdRef.current = setTimeout(() => {
         idleTimerIdRef.current = null
         startAutoScroll()
-      }, idleDelay)
+      }, delay)
       syncDebugState()
     }
 
@@ -491,9 +509,15 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       syncDebugState()
     }
 
-    const handlePointerDown = () => scheduleResume('pointerdown')
-    const handleTouchStart = () => scheduleResume('touchstart')
-    const handleTouchMove = () => scheduleResume('touchmove')
+    const handlePointerDown = (event) =>
+      scheduleResume(
+        event.pointerType === 'touch' ? 'touch-pointerdown' : 'pointerdown',
+        event.pointerType === 'touch' ? MOBILE_TOUCH_RESUME_DELAY_MS : idleDelay,
+      )
+    const handleTouchStart = () => scheduleResume('touchstart', MOBILE_TOUCH_RESUME_DELAY_MS)
+    const handleTouchMove = () => scheduleResume('touchmove', MOBILE_TOUCH_RESUME_DELAY_MS)
+    const handleTouchEnd = () => scheduleResume('touchend', MOBILE_TOUCH_RESUME_DELAY_MS)
+    const handleTouchCancel = () => scheduleResume('touchcancel', MOBILE_TOUCH_RESUME_DELAY_MS)
     const handleWheel = () => scheduleResume('wheel')
     const handleKeyDown = () => scheduleResume('keydown')
     const handlePageShow = () => scheduleResume('pageshow')
@@ -521,6 +545,8 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
     container.addEventListener('pointerdown', handlePointerDown, { passive: true })
     container.addEventListener('touchstart', handleTouchStart, { passive: true })
     container.addEventListener('touchmove', handleTouchMove, { passive: true })
+    container.addEventListener('touchend', handleTouchEnd, { passive: true })
+    container.addEventListener('touchcancel', handleTouchCancel, { passive: true })
     container.addEventListener('wheel', handleWheel, { passive: true })
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('pageshow', handlePageShow)
@@ -536,6 +562,8 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       container.removeEventListener('pointerdown', handlePointerDown)
       container.removeEventListener('touchstart', handleTouchStart)
       container.removeEventListener('touchmove', handleTouchMove)
+      container.removeEventListener('touchend', handleTouchEnd)
+      container.removeEventListener('touchcancel', handleTouchCancel)
       container.removeEventListener('wheel', handleWheel)
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('pageshow', handlePageShow)
