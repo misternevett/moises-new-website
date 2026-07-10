@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CONTACT } from '../config.js'
 
 const BUTTONS = [
@@ -11,6 +11,7 @@ const BUTTON_FONT = '"Didot", "Bodoni 72", "Iowan Old Style", "Times New Roman",
 const DESKTOP_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const DESKTOP_SLOT_WIDTH = '10.5rem'
 const DESKTOP_TRANSITION_MS = 280
+const INTRO_REVEAL_DURATION_MS = 3400
 const COLLAPSED_PILL_WIDTH = '24px'
 const COLLAPSED_PILL_HEIGHT = '6px'
 const COLLAPSED_PILL_GAP = '9px'
@@ -58,7 +59,11 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
     typeof window !== 'undefined' ? window.innerWidth <= MOBILE_COMPACT_BREAKPOINT_PX : false,
   )
   const [expanded, setExpanded] = useState(false)
+  const [introRevealActive, setIntroRevealActive] = useState(false)
   const [hoveredId, setHoveredId] = useState(null)
+  const introRevealPlayedRef = useRef(false)
+  const introRevealTimerRef = useRef(null)
+  const reducedMotionRef = useRef(false)
 
   useEffect(() => {
     const handleResize = () => {
@@ -72,8 +77,25 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updateReducedMotion = () => {
+      reducedMotionRef.current = mediaQuery.matches
+    }
+
+    updateReducedMotion()
+    mediaQuery.addEventListener?.('change', updateReducedMotion)
+
+    return () => {
+      mediaQuery.removeEventListener?.('change', updateReducedMotion)
+    }
+  }, [])
+
+  useEffect(() => {
     if (hidden) {
       setExpanded(false)
+      setIntroRevealActive(false)
       setHoveredId(null)
       return
     }
@@ -83,7 +105,42 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
     setHoveredId(null)
   }, [hidden])
 
+  useEffect(() => () => {
+    if (introRevealTimerRef.current) {
+      clearTimeout(introRevealTimerRef.current)
+      introRevealTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (
+      hidden ||
+      isMobileViewport ||
+      introRevealPlayedRef.current ||
+      reducedMotionRef.current
+    ) {
+      return
+    }
+
+    introRevealPlayedRef.current = true
+    setIntroRevealActive(true)
+    introRevealTimerRef.current = setTimeout(() => {
+      setIntroRevealActive(false)
+      introRevealTimerRef.current = null
+    }, INTRO_REVEAL_DURATION_MS)
+  }, [hidden, isMobileViewport])
+
+  const endIntroReveal = () => {
+    if (introRevealTimerRef.current) {
+      clearTimeout(introRevealTimerRef.current)
+      introRevealTimerRef.current = null
+    }
+    setIntroRevealActive(false)
+  }
+
   const handleAction = (id) => {
+    endIntroReveal()
+
     if (id === 'portfolio') {
       onOpenPortfolio()
       return
@@ -98,13 +155,17 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
   }
 
   const visibilityClass = hidden ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+  const desktopExpanded = expanded || introRevealActive
 
   return (
     <>
       <div className={`fixed bottom-0 right-0 z-40 transition-opacity duration-200 ${visibilityClass} ${isMobileViewport ? 'hidden' : 'block'}`}>
         <div
           className="relative h-[14vh] min-h-[8rem] w-[40vw] min-w-[26rem]"
-          onMouseEnter={() => setExpanded(true)}
+          onMouseEnter={() => {
+            endIntroReveal()
+            setExpanded(true)
+          }}
           onMouseLeave={() => {
             setExpanded(false)
             setHoveredId(null)
@@ -118,10 +179,10 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
               <div
                 className="absolute bottom-0 right-0 flex items-center justify-end transition-[opacity,transform]"
                 style={{
-                  opacity: expanded ? 0 : 1,
-                  transform: expanded ? 'translateY(3px) scale(0.96)' : 'translateY(0) scale(1)',
+                  opacity: desktopExpanded ? 0 : 1,
+                  transform: desktopExpanded ? 'translateY(3px) scale(0.96)' : 'translateY(0) scale(1)',
                   transformOrigin: 'bottom right',
-                  pointerEvents: expanded ? 'none' : 'auto',
+                  pointerEvents: desktopExpanded ? 'none' : 'auto',
                   gap: COLLAPSED_PILL_GAP,
                   transitionDuration: `${DESKTOP_TRANSITION_MS}ms`,
                   transitionTimingFunction: DESKTOP_EASE,
@@ -142,10 +203,10 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
               <div
                 className="flex items-center justify-end gap-2 transition-[opacity,transform]"
                 style={{
-                  opacity: expanded ? 1 : 0,
-                  transform: expanded ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.96)',
+                  opacity: desktopExpanded ? 1 : 0,
+                  transform: desktopExpanded ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.96)',
                   transformOrigin: 'bottom right',
-                  pointerEvents: expanded ? 'auto' : 'none',
+                  pointerEvents: desktopExpanded ? 'auto' : 'none',
                   transitionDuration: `${DESKTOP_TRANSITION_MS}ms`,
                   transitionTimingFunction: DESKTOP_EASE,
                 }}
@@ -156,10 +217,10 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
                     className="relative h-8 shrink-0"
                     style={{
                       width: DESKTOP_SLOT_WIDTH,
-                      opacity: expanded ? 1 : 0,
-                      transform: expanded ? 'translateY(0)' : 'translateY(4px)',
+                      opacity: desktopExpanded ? 1 : 0,
+                      transform: desktopExpanded ? 'translateY(0)' : 'translateY(4px)',
                       transition: `opacity ${DESKTOP_TRANSITION_MS}ms ${DESKTOP_EASE}, transform ${DESKTOP_TRANSITION_MS}ms ${DESKTOP_EASE}`,
-                      transitionDelay: expanded ? `${index * 30}ms` : '0ms',
+                      transitionDelay: desktopExpanded ? `${index * 30}ms` : '0ms',
                     }}
                   >
                     <AccessButton
