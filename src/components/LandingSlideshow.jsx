@@ -128,6 +128,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
   const lastDeltaRef = useRef(0)
   const framesAdvancedRef = useRef(0)
   const stuckCountRef = useRef(0)
+  const [contentReadyTick, setContentReadyTick] = useState(0)
   const [debugState, setDebugState] = useState(() => ({
     mobileBreakpointActive,
     autoScrollEnabled: false,
@@ -309,7 +310,10 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
         lastScrollTopRef.current = nextSetHeight
         hasInitialisedRef.current = true
         syncDebugState()
+        return
       }
+
+      setContentReadyTick((tick) => tick + 1)
     }
 
     syncSetHeight()
@@ -540,7 +544,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       syncDebugState()
     }
-  }, [autoScrollStep, enabled, idleDelay, paused, pauseReason])
+  }, [autoScrollStep, contentReadyTick, enabled, idleDelay, paused, pauseReason])
 
   useEffect(() => {
     syncDebugState()

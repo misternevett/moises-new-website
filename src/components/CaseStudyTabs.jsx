@@ -1,7 +1,7 @@
 const HELVETICA_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif'
 const DIDOT_FONT = '"Didot", "Bodoni 72", "Times New Roman", serif'
 
-function CaseStudyTabMedia({ src, alt, mediaType, mediaClassName = '' }) {
+function CaseStudyTabMedia({ src, alt, mediaType }) {
   if (mediaType === 'video') {
     return (
       <video
@@ -11,19 +11,12 @@ function CaseStudyTabMedia({ src, alt, mediaType, mediaClassName = '' }) {
         muted
         playsInline
         preload="metadata"
-        className={`h-full w-full object-cover object-top ${mediaClassName}`}
+        className="h-full w-full object-cover object-top"
       />
     )
   }
 
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className={`h-full w-full object-cover object-top ${mediaClassName}`}
-      draggable={false}
-    />
-  )
+  return <img src={src} alt={alt} className="h-full w-full object-cover object-top" draggable={false} />
 }
 
 export default function CaseStudyTabs({
@@ -65,8 +58,6 @@ export default function CaseStudyTabs({
         <div className="flex min-w-full gap-3">
           {tabs.map((tab) => {
             const isActive = tab.id === activeId
-            const mediaClassName =
-              tab.id === 'dubai-mall' ? 'scale-[1.035] -translate-y-[8px]' : ''
 
             return (
               <button
@@ -87,7 +78,6 @@ export default function CaseStudyTabs({
                     src={tab.thumbnail}
                     alt={`${tab.brand} thumbnail`}
                     mediaType={tab.thumbnail.endsWith('.mp4') ? 'video' : 'image'}
-                    mediaClassName={mediaClassName}
                   />
                 </div>
 

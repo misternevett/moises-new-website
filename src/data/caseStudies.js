@@ -117,7 +117,7 @@ const CASE_STUDY_CONFIGS = [
     brand: 'The Dubai Mall',
     id: 'dubai-mall',
     folder: 'the-dubai-mall',
-    thumbnail: assetUrl('/case-studies/the-dubai-mall/thumbnail.png'),
+    thumbnail: assetUrl('/case-studies/the-dubai-mall/thumbnail-card.png'),
     heroImage: assetUrl('/case-studies/the-dubai-mall/hero.mp4'),
     mediaMap: buildMediaMap('the-dubai-mall', {
       TDM_1: 'hero.mp4',
