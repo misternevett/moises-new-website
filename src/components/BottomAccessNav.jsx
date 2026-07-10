@@ -11,7 +11,8 @@ const BUTTON_FONT = '"Didot", "Bodoni 72", "Iowan Old Style", "Times New Roman",
 const DESKTOP_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const DESKTOP_SLOT_WIDTH = '10.5rem'
 const DESKTOP_TRANSITION_MS = 280
-const INTRO_REVEAL_DURATION_MS = 3400
+const INTRO_REVEAL_DELAY_MS = 3000
+const INTRO_REVEAL_DURATION_MS = 3000
 const COLLAPSED_PILL_WIDTH = '24px'
 const COLLAPSED_PILL_HEIGHT = '6px'
 const COLLAPSED_PILL_GAP = '9px'
@@ -62,7 +63,8 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
   const [introRevealActive, setIntroRevealActive] = useState(false)
   const [hoveredId, setHoveredId] = useState(null)
   const introRevealPlayedRef = useRef(false)
-  const introRevealTimerRef = useRef(null)
+  const introRevealStartTimerRef = useRef(null)
+  const introRevealEndTimerRef = useRef(null)
   const reducedMotionRef = useRef(false)
 
   useEffect(() => {
@@ -106,9 +108,13 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
   }, [hidden])
 
   useEffect(() => () => {
-    if (introRevealTimerRef.current) {
-      clearTimeout(introRevealTimerRef.current)
-      introRevealTimerRef.current = null
+    if (introRevealStartTimerRef.current) {
+      clearTimeout(introRevealStartTimerRef.current)
+      introRevealStartTimerRef.current = null
+    }
+    if (introRevealEndTimerRef.current) {
+      clearTimeout(introRevealEndTimerRef.current)
+      introRevealEndTimerRef.current = null
     }
   }, [])
 
@@ -123,17 +129,24 @@ export default function BottomAccessNav({ onOpenPortfolio, onOpenCaseStudies, hi
     }
 
     introRevealPlayedRef.current = true
-    setIntroRevealActive(true)
-    introRevealTimerRef.current = setTimeout(() => {
-      setIntroRevealActive(false)
-      introRevealTimerRef.current = null
-    }, INTRO_REVEAL_DURATION_MS)
+    introRevealStartTimerRef.current = setTimeout(() => {
+      setIntroRevealActive(true)
+      introRevealStartTimerRef.current = null
+      introRevealEndTimerRef.current = setTimeout(() => {
+        setIntroRevealActive(false)
+        introRevealEndTimerRef.current = null
+      }, INTRO_REVEAL_DURATION_MS)
+    }, INTRO_REVEAL_DELAY_MS)
   }, [hidden, isMobileViewport])
 
   const endIntroReveal = () => {
-    if (introRevealTimerRef.current) {
-      clearTimeout(introRevealTimerRef.current)
-      introRevealTimerRef.current = null
+    if (introRevealStartTimerRef.current) {
+      clearTimeout(introRevealStartTimerRef.current)
+      introRevealStartTimerRef.current = null
+    }
+    if (introRevealEndTimerRef.current) {
+      clearTimeout(introRevealEndTimerRef.current)
+      introRevealEndTimerRef.current = null
     }
     setIntroRevealActive(false)
   }
