@@ -370,6 +370,12 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       }
     }
 
+    const canAutoScrollNow = () => {
+      if (!enabled || paused) return false
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
+      return true
+    }
+
     const tick = (timestamp) => {
       if (!enabled || paused) {
         stopAutoScroll(pauseReason)
@@ -428,7 +434,7 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
     }
 
     const startAutoScroll = () => {
-      if (isRunningRef.current || paused) return
+      if (isRunningRef.current || !canAutoScrollNow()) return
 
       const activeTarget = getMobileScrollElement()
       if (!activeTarget?.resolvedTarget || !activeTarget.metrics.canScroll) {
@@ -453,6 +459,10 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
     const scheduleResume = (reason = 'idle') => {
       stopAutoScroll(reason)
       clearIdleTimer()
+      if (!canAutoScrollNow()) {
+        syncDebugState()
+        return
+      }
       idleTimerIdRef.current = setTimeout(() => {
         idleTimerIdRef.current = null
         startAutoScroll()
@@ -482,6 +492,18 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
     const handleTouchMove = () => scheduleResume('touchmove')
     const handleWheel = () => scheduleResume('wheel')
     const handleKeyDown = () => scheduleResume('keydown')
+    const handlePageShow = () => scheduleResume('pageshow')
+    const handleWindowFocus = () => scheduleResume('focus')
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        clearIdleTimer()
+        stopAutoScroll('page-hidden')
+        return
+      }
+
+      scheduleResume('page-visible')
+    }
+    const handleViewportChange = () => scheduleResume('viewport-change')
 
     if (paused) {
       clearIdleTimer()
@@ -497,6 +519,10 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
     container.addEventListener('touchmove', handleTouchMove, { passive: true })
     container.addEventListener('wheel', handleWheel, { passive: true })
     window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('pageshow', handlePageShow)
+    window.addEventListener('focus', handleWindowFocus)
+    window.addEventListener('orientationchange', handleViewportChange)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     syncDebugState()
 
     return () => {
@@ -508,6 +534,10 @@ function useMobileLoopScroll(enabled, paused = false, debugOptions = {}) {
       container.removeEventListener('touchmove', handleTouchMove)
       container.removeEventListener('wheel', handleWheel)
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('pageshow', handlePageShow)
+      window.removeEventListener('focus', handleWindowFocus)
+      window.removeEventListener('orientationchange', handleViewportChange)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       syncDebugState()
     }
   }, [autoScrollStep, enabled, idleDelay, paused, pauseReason])
