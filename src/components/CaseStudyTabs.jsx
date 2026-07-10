@@ -11,12 +11,19 @@ function CaseStudyTabMedia({ src, alt, mediaType }) {
         muted
         playsInline
         preload="metadata"
-        className="h-full w-full object-cover object-top"
+        className="block h-auto w-full"
       />
     )
   }
 
-  return <img src={src} alt={alt} className="h-full w-full object-cover object-top" draggable={false} />
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="block h-auto w-full"
+      draggable={false}
+    />
+  )
 }
 
 export default function CaseStudyTabs({
@@ -66,14 +73,14 @@ export default function CaseStudyTabs({
                 onClick={() => {
                   if (!isActive) onChange(tab.id)
                 }}
-                className={`group relative w-[13.5rem] shrink-0 overflow-hidden rounded-[1rem] border border-black/8 bg-[#f6f4f2] text-left shadow-[0_8px_18px_rgba(0,0,0,0.04)] transition ${
+                className={`group relative flex w-[13.5rem] shrink-0 flex-col items-stretch overflow-hidden rounded-[1rem] border border-black/8 bg-[#f6f4f2] p-0 text-left align-top shadow-[0_8px_18px_rgba(0,0,0,0.04)] transition appearance-none ${
                   isActive
                     ? 'scale-[0.99] opacity-50 saturate-0'
                     : 'opacity-100 hover:-translate-y-0.5 hover:border-black/18 hover:shadow-[0_12px_24px_rgba(0,0,0,0.07)]'
                 }`}
                 aria-pressed={isActive}
               >
-                <div className="h-[9.15rem] w-full overflow-hidden bg-[#ddd9d6]">
+                <div className="w-full leading-none">
                   <CaseStudyTabMedia
                     src={tab.thumbnail}
                     alt={`${tab.brand} thumbnail`}
